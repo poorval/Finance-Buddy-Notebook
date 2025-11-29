@@ -57,6 +57,14 @@ def get_insights_endpoint():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/stats")
+def get_stats_endpoint():
+    try:
+        from database import get_dashboard_stats
+        return get_dashboard_stats()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
