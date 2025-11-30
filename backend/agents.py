@@ -1,17 +1,21 @@
 import os
 from dotenv import load_dotenv
+from datetime import datetime
 import pathlib
 from google.adk.agents import Agent, SequentialAgent
 from google.adk.models.google_llm import Gemini
 from google.adk.tools import google_search, AgentTool
 from google.adk.runners import InMemoryRunner
 from google.genai import types
-from database import (
+from tools import (
     save_transaction_tool, 
     add_debt_tool, 
     read_sql_query_tool, 
     record_group_debts,
-    execute_sql_update_tool
+    execute_sql_update_tool,
+    analyze_spending_tool,
+    get_budget_status_tool,
+    compare_spending_tool
 )
 
 # Load .env
@@ -218,7 +222,51 @@ AMBIGUITY HANDLING
 """
 )
 
-# 5. Log Expense Pipeline
+# 5. Spend Analyser Agent
+spend_analyser_agent = Agent(
+    name="SpendAnalyser",
+    model=Gemini(
+        model="gemini-2.5-flash-lite",
+        api_key=api_key,
+        generation_config={"temperature": 0.3}
+    ),
+    tools=[analyze_spending_tool, get_budget_status_tool, compare_spending_tool],
+    description="Analyzes spending patterns, budget status, and trends.",
+    instruction="""
+    You are the Spend Analyser. Your job is to provide insights into the user's financial data.
+
+    **Capabilities & Tool Selection:**
+    1. **General Analysis & Filtering**: Use `analyze_spending_tool`.
+       - For questions like "Top spenders", "Spending distribution", "Merchant analysis", "Activity peaks".
+       - Example: "What did I spend most on?" -> `analyze_spending_tool(..., group_by="category", limit=1)`
+    2. **Budget Checks**: Use `get_budget_status_tool`.
+       - For questions like "Am I on track?", "Budget status", "Over budget alerts".
+       - Example: "How is my budget?" -> `get_budget_status_tool(month="YYYY-MM")`
+    3. **Comparisons**: Use `compare_spending_tool`.
+       - For questions like "Did I spend more than last month?", "Trends".
+       - Example: "Compare this week vs last week" -> `compare_spending_tool(...)`
+
+    **Safety & Conduct Rules:**
+    1. **Financial Focus Only**: You are a financial assistant. Do NOT answer questions about:
+       - General knowledge (e.g., "Capital of France")
+       - Coding/Programming (unless related to this specific tool usage)
+       - Personal advice unrelated to finance
+       - Profanity, vulgarity, or offensive topics.
+    2. **Handling Inappropriate Prompts**:
+       - If a user asks something profane, vulgar, or out of context:
+         - Reply politely but firmly: "I specialize in analyzing your personal finances. I cannot assist with that topic."
+       - Do NOT engage with the content of the inappropriate prompt.
+    3. **Data Privacy**:
+       - Do not reveal raw sensitive data (like full account numbers) if they ever appear (unlikely here, but good practice).
+
+    **Date Context:**
+    - The user's message will be prefixed with "Today is YYYY-MM-DD". 
+    - Use this date to resolve relative time references like "this month", "last week", "today", etc.
+    - Do NOT ask the user for the current date if it is provided in the context.
+    """
+)
+
+# 6. Log Expense Pipeline
 log_expense_pipeline = SequentialAgent(
     name="LogExpensePipeline",
     description=(
@@ -232,8 +280,9 @@ log_expense_pipeline = SequentialAgent(
 log_expense_tool = AgentTool(agent=log_expense_pipeline)
 splitwise_tool  = AgentTool(agent=splitwise_agent)
 update_tool = AgentTool(agent=update_agent)
+spend_analyser_tool = AgentTool(agent=spend_analyser_agent)
 
-# 6. Orchestrator
+# 7. Orchestrator
 orchestrator_agent = Agent(
     name="ExpenseOrchestrator",
     model=Gemini(
@@ -241,7 +290,7 @@ orchestrator_agent = Agent(
         api_key=api_key,
         generation_config={"temperature": 0.4}
     ),
-    tools=[log_expense_tool, splitwise_tool, read_sql_query_tool, record_group_debts, update_tool],
+    tools=[log_expense_tool, splitwise_tool, read_sql_query_tool, record_group_debts, update_tool, spend_analyser_tool],
     description="Coordinates expense categorization, saving, querying, and debt management for the user.",
     instruction="""
     You are the Chief Financial Coordinator.
@@ -255,10 +304,13 @@ orchestrator_agent = Agent(
          2) save the transaction,
          3) record group debts if there is a split.
     2. Answer questions about spending, budgets, and categories:
-       - Use read_sql_query_tool with a single SELECT statement on:
-         - 'transactions' and 'categories' tables for spending/budget questions.
-         - To answer questions like ‘whom do I have to pay?’ or ‘who has to pay me?’, ALWAYS call read_sql_query_tool with a SELECT on the 'debts' table (this tool does have access). Do not say that debts cannot be queried.
-         - 'debts' table for debt summaries.
+       - **Prioritize using the SpendAnalyser tool** for questions about:
+         - Trends ("spending more than last month?")
+         - Budget health ("am I on track?")
+         - Deep analysis ("top spenders", "merchant breakdown")
+       - Use read_sql_query_tool for simple, direct data fetches if SpendAnalyser is not a better fit.
+       - To answer questions like ‘whom do I have to pay?’ or ‘who has to pay me?’, ALWAYS call read_sql_query_tool with a SELECT on the 'debts' table (this tool does have access). Do not say that debts cannot be queried.
+       - 'debts' table for debt summaries.
     3. Manage debts and splits:
        - When the user mentions words like "split", "owe", \"lent\", \"borrowed\", \"settle\", or \"who owes whom\",
          route the request to the SplitwiseManager tool.
@@ -271,8 +323,7 @@ orchestrator_agent = Agent(
 
     Routing logic (examples):
     - If the user just greets you ("Hello", "Hi"), reply yourself.
-    - If the user asks about spending or budgets (e.g., "How much did I spend on Dining this month?",
-      "What is my Dining budget and how much is left?"), generate an appropriate SQL SELECT and call read_sql_query_tool.
+    - If the user asks about spending trends or budget status, call SpendAnalyser.
     - For shared-bill descriptions, either:
       - call LogExpensePipeline (if it is a new expense being logged), or
       - call SplitwiseManager for complex/adjustment-only scenarios.
@@ -289,29 +340,63 @@ orchestrator_agent = Agent(
 runner = InMemoryRunner(agent=orchestrator_agent, app_name="agents")
 
 async def process_chat(message: str) -> str:
-    # run_debug returns a list of events
-    events = await runner.run_debug(message)
-    
-    # Extract text from the last event that has it
-    for event in reversed(events):
-        # Check for 'text' attribute directly
-        if hasattr(event, "text") and event.text:
-            return event.text
+    try:
+        # Prepend current date to the message for context
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        context_message = f"Today is {current_date}. {message}"
         
-        # Check for 'parts' in 'content' (common in Gemini response events)
-        if hasattr(event, "parts"):
-             # event.parts is likely a list of Part objects
-             for part in event.parts:
-                 if hasattr(part, "text") and part.text:
-                     return part.text
+        # run_debug returns a list of events
+        events = await runner.run_debug(context_message)
         
-        # Fallback: check content attribute
-        if hasattr(event, "content") and event.content:
-            # If content is a ModelResponse or similar object with parts
-            if hasattr(event.content, "parts"):
-                for part in event.content.parts:
-                    if hasattr(part, "text") and part.text:
-                        return part.text
-            return str(event.content)
+        if not events:
+            return "No response events generated."
+        
+        print(events)
+        # Extract text from the last event that has it
+        for event in reversed(events):
+            # Check for 'text' attribute directly
+            if hasattr(event, "text") and event.text:
+                return event.text
             
-    return "No response from agent."
+            # Check for 'parts' in 'content' (common in Gemini response events)
+            if hasattr(event, "parts") and event.parts:
+                 # event.parts is likely a list of Part objects
+                 for part in event.parts:
+                     if hasattr(part, "text") and part.text:
+                         return part.text
+                     
+                     # Check for function_response
+                     if hasattr(part, "function_response") and part.function_response:
+                         if hasattr(part.function_response, "response") and part.function_response.response:
+                             resp = part.function_response.response
+                             if isinstance(resp, dict) and "result" in resp:
+                                 return str(resp["result"])
+                             return str(resp)
+
+            # Fallback: check content attribute
+            if hasattr(event, "content") and event.content:
+                # If content is a ModelResponse or similar object with parts
+                if hasattr(event.content, "parts") and event.content.parts:
+                    for part in event.content.parts:
+                        if hasattr(part, "text") and part.text:
+                            return part.text
+                        
+                        # Check for function_response in content parts
+                        if hasattr(part, "function_response") and part.function_response:
+                             if hasattr(part.function_response, "response") and part.function_response.response:
+                                 resp = part.function_response.response
+                                 if isinstance(resp, dict) and "result" in resp:
+                                     return str(resp["result"])
+                                 return str(resp)
+                
+                # If content is just a string
+                if isinstance(event.content, str):
+                    return event.content
+            
+            # Continue to next event if no text found in this one
+            continue
+                
+        return "No text response found in events."
+        
+    except Exception as e:
+        return f"Error processing chat: {str(e)}"
