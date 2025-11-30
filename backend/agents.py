@@ -83,7 +83,7 @@ saver_agent = Agent(
 )
 
 # 3. Splitwise Manager
-s# --- SPLITWISE AGENT ---
+# --- SPLITWISE AGENT ---
 splitwise_agent = Agent(
     name="SplitwiseManager",
     model=Gemini(
@@ -306,6 +306,8 @@ splitwise_agent = Agent(
 
 
 # 4. Update Manager
+transaction_saver_tool = AgentTool(agent=saver_agent)
+
 update_agent = Agent(
     name="UpdateManager",
     model=Gemini(
