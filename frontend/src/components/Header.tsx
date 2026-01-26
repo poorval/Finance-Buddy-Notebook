@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle"
 import { UserProfile } from "@/components/user-profile"
+import { SettingsDialog } from "@/components/settings-dialog"
 
 export function Header() {
     return (
@@ -15,7 +16,7 @@ export function Header() {
                 <nav className="hidden md:flex items-center gap-4 text-sm font-medium text-muted-foreground">
                     <a href="#" className="text-foreground transition-colors hover:text-foreground">Overview</a>
                     <a href="#" className="transition-colors hover:text-foreground">Transactions</a>
-                    <a href="#" className="transition-colors hover:text-foreground">Settings</a>
+                    <SettingsDialog />
                 </nav>
             </div>
 

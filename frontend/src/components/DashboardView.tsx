@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '@/utils/api';
 import { Dashboard } from './Dashboard';
 import { TransactionList } from './TransactionList';
+import { BudgetFlipCard } from './BudgetFlipCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, CreditCard, Activity, Wallet } from 'lucide-react';
+import { DollarSign, CreditCard, Activity, Wallet, ArrowLeftRight } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 
 interface DashboardStats {
     total_spent: number;
@@ -13,7 +15,13 @@ interface DashboardStats {
     active_debts: number;
 }
 
-export function DashboardView({ refreshTrigger }: { refreshTrigger: number }) {
+interface DashboardViewProps {
+    refreshTrigger: number;
+    onLayoutChange?: () => void;
+    isChatRight?: boolean;
+}
+
+export function DashboardView({ refreshTrigger, onLayoutChange, isChatRight }: DashboardViewProps) {
     const [stats, setStats] = useState<DashboardStats>({
         total_spent: 0,
         budget: 0,
@@ -24,7 +32,7 @@ export function DashboardView({ refreshTrigger }: { refreshTrigger: number }) {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await axios.get('http://localhost:8000/stats');
+                const res = await api.get('/stats');
                 setStats(res.data);
             } catch (error) {
                 console.error("Error fetching stats:", error);
@@ -45,7 +53,11 @@ export function DashboardView({ refreshTrigger }: { refreshTrigger: number }) {
             <div className="flex items-center justify-between space-y-2">
                 <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
                 <div className="flex items-center space-x-2">
-                    {/* Date Range Picker could go here */}
+                    {onLayoutChange && (
+                        <Button variant="outline" size="icon" onClick={onLayoutChange} title="Swap Layout">
+                            <ArrowLeftRight className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             </div>
             <Tabs defaultValue="overview" className="space-y-4">
@@ -66,16 +78,21 @@ export function DashboardView({ refreshTrigger }: { refreshTrigger: number }) {
                                 <p className="text-xs text-muted-foreground">Total expenses</p>
                             </CardContent>
                         </Card>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Budget</CardTitle>
-                                <Wallet className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{formatCurrency(stats.budget)}</div>
-                                <p className="text-xs text-muted-foreground">Total budget</p>
-                            </CardContent>
-                        </Card>
+                        <BudgetFlipCard
+                            currentBudget={stats.budget}
+                            onBudgetUpdate={() => {
+                                // Trigger refresh by toggling trigger or calling parent
+                                // Since refreshTrigger is prop, we might need to handle it better.
+                                // For now, we assume Stats will be refetched on refreshTrigger change
+                                // But we can't change parent state easily. 
+                                // Ideally we lift state or use context. 
+                                // Hack: We can locally update stats.budget for immediate feedback?
+                                // Better: DashboardView should key off stats fetch. 
+                                // Let's just create a local refresh or assume parent handles globally?
+                                // Let's just trigger a re-fetch if possible or optimistic update.
+                            }}
+                            onSuccess={(newVal) => setStats(prev => ({ ...prev, budget: newVal, remaining: newVal - prev.total_spent }))}
+                        />
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">Remaining</CardTitle>

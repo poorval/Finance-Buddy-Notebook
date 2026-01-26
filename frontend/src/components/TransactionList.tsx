@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '@/utils/api';
 import { Search, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -27,7 +27,7 @@ export function TransactionList({ refreshTrigger }: { refreshTrigger: number }) 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await axios.get('http://localhost:8000/transactions');
+                const res = await api.get('/transactions');
                 const data: Transaction[] = res.data;
                 setTransactions(data);
                 setFilteredTransactions(data);

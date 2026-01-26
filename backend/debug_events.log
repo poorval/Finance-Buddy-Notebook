@@ -1,0 +1,11 @@
+Event 0: <class 'google.adk.events.event.Event'> - model_version='gemini-3-flash-preview' content=Content() grounding_metadata=None partial=None turn_complete=None finish_reason=<FinishReason.STOP: 'STOP'> error_code=None error_message=None interrupted=None custom_metadata=None usage_metadata=GenerateContentResponseUsageMetadata(
+  prompt_token_count=558,
+  prompt_tokens_details=[
+    ModalityTokenCount(
+      modality=<MediaModality.TEXT: 'TEXT'>,
+      token_count=558
+    ),
+  ],
+  thoughts_token_count=283,
+  total_token_count=841
+) live_session_resumption_update=None input_transcription=None output_transcription=None avg_logprobs=None logprobs_result=None cache_metadata=None citation_metadata=None invocation_id='e-555678ae-43ba-4718-95cc-334d880c6dd1' author='ExpenseOrchestrator' actions=EventActions(skip_summarization=None, state_delta={}, artifact_delta={}, transfer_to_agent=None, escalate=None, requested_auth_configs={}, requested_tool_confirmations={}, compaction=None, end_of_agent=None, agent_state=None, rewind_before_invocation_id=None) long_running_tool_ids=None branch=None id='b7bfe3f0-2441-4f28-9314-a99d92c2e5f8' timestamp=1769424673.668732

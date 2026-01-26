@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState, useMemo } from 'react';
-import axios from 'axios';
+import api from '@/utils/api';
 import { PieChart, Pie, Cell, Label } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import {
@@ -35,7 +35,7 @@ export function Dashboard({ refreshTrigger }: { refreshTrigger: number }) {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await axios.get('http://localhost:8000/insights');
+                const res = await api.get('/insights');
                 // Assign colors to data
                 const processedData = res.data.map((item: any, index: number) => ({
                     ...item,

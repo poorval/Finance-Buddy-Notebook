@@ -17,6 +17,7 @@ export default function LoginForm() {
 
     const handleLogin = async () => {
         setIsLoading(true)
+
         const supabase = createClient()
         await supabase.auth.signInWithOAuth({
             provider: 'google',

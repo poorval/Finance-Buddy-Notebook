@@ -11,8 +11,13 @@ from database import (
     add_debt_tool, 
     read_sql_query_tool, 
     record_group_debts,
-    execute_sql_update_tool
+    execute_sql_update_tool,
+    add_category_tool
 )
+import logging
+
+# Configure logging (if not already handled by parent, but good to have local logger)
+logger = logging.getLogger(__name__)
 
 # Load .env
 env_path = pathlib.Path(__file__).parent / '.env'
@@ -36,21 +41,19 @@ retry_config = types.HttpRetryOptions(
 root_agent = Agent(
     name="CategoryClassifier",
     model=Gemini(
-        model="gemini-2.5-flash-lite",
+        model="gemini-3-flash-preview",
         api_key=api_key,
         retry_options=retry_config
     ),
     description="An intelligent agent that enriches transaction data.",
     instruction="""
-        You are an autonomous Transaction Classifier. 
+        Role: Transaction Classifier.
+        Rules:
+        1. Input: Expense string (e.g., "Uber to airport", "Starbucks $5").
+        2. Action: If unclear, use 'google_search' to identify business type.
+        3. Output: JSON {"category": "...", "description": "..."}
         
-        RULES:
-        1. Input: A string like "Uber trip to airport" or "Starbucks $5".
-        2. Action: If the merchant is not obvious, use the 'google_search' tool to find their primary business type.
-           - Example: If user says "Dunder Mifflin", search for it. If search says "Paper Company", categorize as "Office Supplies" (or 'Shopping').
-        3. Output: specific JSON format: {"category": "...", "description": "..."}
-        
-        Standard Categories: [Groceries, Dining, Transport, Bills, Shopping, Entertainment, Health, Investment, Others]
+        Categories: [Groceries, Dining, Transport, Bills, Shopping, Entertainment, Health, Investment, Others]
         """,
     tools=[google_search],
     output_key="category_found"
@@ -60,23 +63,19 @@ root_agent = Agent(
 saver_agent = Agent(
     name="TransactionSaver",
     model=Gemini(
-        model="gemini-2.5-flash-lite",
+        model="gemini-3-flash-preview",
         api_key=api_key,
         retry_options=retry_config
     ),
     description="The final agent in the pipeline. It commits validated data to the database.",
     instruction="""
-        You are the Transaction Gatekeeper.
-        
-        **Your Goal:** Save the transaction using the 'save_transaction_tool'.
-        
-        **Rules:**
-        1. You will receive inputs including Description, Amount, Category, and Split Details.
-        2. You MUST call the 'save_transaction_tool' with these exact parameters.
-        3. If the tool returns "SUCCESS", confirm this to the user.
-        4. If the tool returns "ERROR", report the error back to the Orchestrator/User do NOT try to fake a save.
-        
-        **Critical:** Do not hallucinate a successful save. Only report success if the tool returns it.
+        Role: Transaction Gatekeeper.
+        Goal: Save transaction using 'save_transaction_tool'.
+        Rules:
+        1. Input: Description, Amount, Category, Split Details.
+        2. Action: Call 'save_transaction_tool' exact parameters.
+        3. Output: Report SUCCESS or ERROR exactly as returned by tool.
+        4. MANDATORY: You must generate a final response to the user confirming the save, e.g., "Saved: [Description] - $[Amount]".
         """,
     tools=[save_transaction_tool]
 )
@@ -85,54 +84,25 @@ saver_agent = Agent(
 splitwise_agent = Agent(
     name="SplitwiseManager",
     model=Gemini(
-        model="gemini-2.5-flash-lite",
+        model="gemini-3-flash-preview",
         api_key=api_key,
         retry_options=retry_config
     ),
     description="Manages debts and shared expenses between people.",
     instruction="""
-        You are the Splitwise Manager for a personal expense tracker.
+        Role: Splitwise Manager for personal debt.
+        Goal: Convert group expenses into debts involving 'Me'.
+        Tools: 'record_group_debts' (write), 'read_sql_query_tool' (read).
         
-        Goal:
-        - Track who owes whom, but ONLY for the user ('Me').
-        - Always convert group expenses into one-to-one debts where either the debtor or the creditor is 'Me'.
-        
-        Tools:
-        - Use 'record_group_debts' to RECORD new debts from natural-language descriptions.
-        - Use 'read_sql_query_tool' to READ existing debts from the 'debts' table.
-        
-        Recording debts (record_group_debts):
-        - This tool handles one-to-one, one-to-many, many-to-one, and many-to-many.
-        - It should always be called instead of directly calling SQL inserts.
-        - Arguments:
-          - creditors: comma-separated people who paid (e.g., "Me", or "Me, John").
-          - debtors: comma-separated people who did not pay but consumed (e.g., "Me","Me,Bob, Sarah").
-          - total_amount: total bill.
-          - description: short label, like "Dinner" or "Cab".
-          - status: usually "unsettled" for new debts.
-          - split_mode:
-              * "equal"  -> equal fair share among all consumers.
-              * "custom" -> use fair_shares to specify per-person fair share.
-          - fair_shares (optional for "custom"): "Name1:x1, Name2:x2, ..."
-          - paid_shares (optional): "Name1:x1, Name2:x2, ..." for who actually paid how much.
-        
-        Important:
-        - ALWAYS ensure 'Me' is part of creditors or debtors; only record debts where 'Me' is debtor or creditor.
-        - If the user does not specify who paid, assume 'Me' paid.
-        - Never create debts between two other people (e.g., Bob ↔ John) if 'Me' is not in that pair.
-        
-        Answering questions with read_sql_query_tool:
-        - For "Whom do I have to pay?":
-          - Run a SELECT on debts where debtor = 'Me' AND status = 'unsettled'.
-        - For "Who has to pay me?":
-          - Run a SELECT on debts where creditor = 'Me' AND status = 'unsettled'.
-        - For "Who all have settled their debts to me?":
-          - Run a SELECT on debts where creditor = 'Me' AND status = 'settled'.
-        
-        Always:
-        - Choose the correct SQL based on the user's question.
-        - Call read_sql_query_tool with a single SELECT statement.
-        - Then summarize the result for the user in clear natural language.
+        Rules:
+        1. Always ensure 'Me' is debtor or creditor.
+        2. 'record_group_debts':
+           - creditors/debtors: comma-separated names.
+           - split_mode: 'equal' or 'custom' (requires fair_shares).
+           - Unknown payer defaults to 'Me'.
+        3. 'read_sql_query_tool':
+           - "Whom do I owe?": SELECT ... FROM debts WHERE debtor='Me' AND status='unsettled'
+           - "Who owes me?": SELECT ... FROM debts WHERE creditor='Me' AND status='unsettled'
         """,
     tools=[record_group_debts, read_sql_query_tool]
 )
@@ -141,82 +111,31 @@ splitwise_agent = Agent(
 update_agent = Agent(
     name="UpdateManager",
     model=Gemini(
-        model="gemini-2.5-flash-lite",
+        model="gemini-3-flash-preview",
         api_key=api_key,
         generation_config={"temperature": 0.2}
     ),
-    tools=[read_sql_query_tool, execute_sql_update_tool],
+    tools=[read_sql_query_tool, execute_sql_update_tool, add_category_tool],
     description="Updates categories, budgets, transactions, and debts in the database.",
     instruction="""
-You update existing records in the 'categories', 'transactions', and 'debts' tables.
-
-GENERAL RULES
-- First, IDENTIFY the exact row(s) to update using read_sql_query_tool with a SELECT.
-- Then, construct a parameterized UPDATE statement and call execute_sql_update_tool.
-- Always confirm back to the user what was changed.
-- Never guess if multiple rows match; show them and ask the user which one to use.
-
-CATEGORIES / BUDGETS (table: categories)
-- If the user says "Change Dining budget to 5000":
-  1) SELECT id, name, budget FROM categories WHERE name = 'Dining';
-  2) If exactly one row is found, UPDATE categories SET budget = 5000 WHERE id = <that id>.
-- If they rename a category:
-  - UPDATE categories SET name = <new_name> WHERE name = <old_name>.
-
-TRANSACTIONS (table: transactions)
-- To locate transactions, you can filter by:
-  - description (using WHERE description LIKE '%keyword%'),
-  - timestamp (WHERE timestamp = 'YYYY-MM-DD' or BETWEEN ...),
-  - amount,
-  - category (using WHERE category LIKE '%keyword%'),
-  - or id if the user mentions it.
-
-- When the user says "update my latest <keyword> transaction to <new_amount>":
-  1) Treat <keyword> as a substring in the description (or category name if available).
-  2) Call read_sql_query_tool with a query like:
-     SELECT id, timestamp, description, amount, category
-     FROM transactions
-     WHERE description LIKE '%' || <keyword> || '%'
-     ORDER BY date DESC, id DESC
-     LIMIT 1;
-  3) If this returns exactly 1 row, construct an UPDATE:
-     UPDATE transactions
-     SET amount = <new_amount>
-     WHERE id = <that row's id>;
-     and call execute_sql_update_tool.
-  4) If 0 rows are returned, tell the user you could not find such a transaction and ask for more details.
-  5) If there are multiple "latest" candidates (e.g., if no date field exists), first show the top few matches
-     and ask the user to pick one.
-
-- For requests like "Change the amount of the coffee I logged yesterday from 120 to 150":
-  1) Use read_sql_query_tool to SELECT rows filtered by date and a keyword in description ("coffee"),
-     and/or the old amount (120).
-  2) If you find exactly one row, UPDATE that row's amount to 150.
-  3) If multiple rows match, show them and ask which one to update.
-
-DEBTS (table: debts)
-- Fields in table 'debts' include id, creditor, debtor, amount, description, status (e.g., 'settled' / 'unsettled').
-- To locate debts, you can filter by:
-  - description (using WHERE description LIKE '%keyword%'),
-  - timestamp (WHERE timestamp = 'YYYY-MM-DD' or BETWEEN ...),
-  - amount,
-  - category (using WHERE category LIKE '%keyword%'),
-  - status,
-  - or id if the user mentions it.
-- "Mark my debt to John for 200 as settled":
-  1) SELECT id, creditor, debtor, amount, description, status FROM debts
-     WHERE debtor = 'Me' AND creditor = 'John' AND amount = 200 AND status != 'settled';
-  2) If exactly one row is found, UPDATE debts SET status = 'settled' WHERE id = <that id>.
-- "Change creditor from John to Sarah for that 300 rent payment":
-  1) SELECT candidate debts filtered by amount and a description/label if available.
-  2) If exactly one row matches, UPDATE debts SET creditor = 'Sarah' WHERE id = <that id>.
-
-AMBIGUITY HANDLING
-- If you are not sure which row the user refers to (no rows or multiple rows):
-  - Use read_sql_query_tool to show a small list of candidate rows (id, date, description, amount, etc.).
-  - Ask the user to clarify (for example, by giving a date, id, or description snippet).
-- Never update multiple rows at once unless the user explicitly asks for a bulk change.
-"""
+        Role: Update Manager.
+        Goal: Update rows in 'categories', 'transactions', 'debts' OR create new categories.
+        
+        Procedure:
+        1. SEARCH: Use 'read_sql_query_tool' to find target row (by id, date, desc, amount).
+        2. CONFIRM: exact row match. If ambiguous, ask user.
+        3. CREATE: If user wants new category, use 'add_category_tool'.
+        4. UPDATE: Call 'execute_sql_update_tool' with parameterized SQL.
+        5. REPORT: Confirm change to user.
+        6. MANDATORY: explicitly state what was changed in your final response.
+        
+        Examples:
+        - "Change Dining budget to 5000": UPDATE categories SET budget=5000...
+        - "Update latest coffee to 150": Find match -> UPDATE transactions SET amount=150...
+        - "Settle debt to John": Find debt -> UPDATE debts SET status='settled'...
+        - "Create category Bike Servicing with budget 200": Call add_category_tool("Bike Servicing", 200).
+        - "Transfer 'bike servicing' to 'Bike Expenses'": Find transaction -> UPDATE transactions SET category='Bike Expenses'...
+        """
 )
 
 # 5. Log Expense Pipeline
@@ -238,52 +157,24 @@ update_tool = AgentTool(agent=update_agent)
 orchestrator_agent = Agent(
     name="ExpenseOrchestrator",
     model=Gemini(
-        model="gemini-2.5-flash-lite",
+        model="gemini-3-flash-preview",
         api_key=api_key,
         generation_config={"temperature": 0.4}
     ),
     tools=[log_expense_tool, splitwise_tool, read_sql_query_tool, record_group_debts, update_tool],
     description="Coordinates expense categorization, saving, querying, and debt management for the user.",
     instruction="""
-    You are the Chief Financial Coordinator.
+    Role: Chief Financial Coordinator.
+    
+    Routing Logic:
+    1. Log Expenses: Calls 'LogExpensePipeline' for new single expenses.
+    2. Spending Questions: Call 'read_sql_query_tool' (SELECT on transactions/categories).
+    3. Debts/Splits: Call 'SplitwiseManager' or 'read_sql_query_tool' (on debts). "Whom do I owe?" goes to debts table.
+    4. Updates/Creation: Call 'UpdateManager' for changes or NEW categories.
 
-    Capabilities:
-    1. Log expenses:
-       - When the user wants to add a new expense in one go (they give description and amount,
-         and maybe mention splits), call the LogExpensePipeline tool.
-       - LogExpensePipeline will:
-         1) classify the expense,
-         2) save the transaction,
-         3) record group debts if there is a split.
-    2. Answer questions about spending, budgets, and categories:
-       - Use read_sql_query_tool with a single SELECT statement on:
-         - 'transactions' and 'categories' tables for spending/budget questions.
-         - To answer questions like ‘whom do I have to pay?’ or ‘who has to pay me?’, ALWAYS call read_sql_query_tool with a SELECT on the 'debts' table (this tool does have access). Do not say that debts cannot be queried.
-         - 'debts' table for debt summaries.
-    3. Manage debts and splits:
-       - When the user mentions words like "split", "owe", \"lent\", \"borrowed\", \"settle\", or \"who owes whom\",
-         route the request to the SplitwiseManager tool.
-       - If a sentence mentions another person paying ‘for me’, treat it as a debt where Me is debtor and call SplitwiseManager
-       - SplitwiseManager will internally use record_group_debts (for writing) and read_sql_query_tool (for reading).
-     4. Update or fix existing data:
-           - When the user wants to change categories, budgets, transaction amounts/dates,
-             or debt info (creditor, debtor, settled/not settled),
-             call the UpdateManager tool.
-
-    Routing logic (examples):
-    - If the user just greets you ("Hello", "Hi"), reply yourself.
-    - If the user asks about spending or budgets (e.g., "How much did I spend on Dining this month?",
-      "What is my Dining budget and how much is left?"), generate an appropriate SQL SELECT and call read_sql_query_tool.
-    - For shared-bill descriptions, either:
-      - call LogExpensePipeline (if it is a new expense being logged), or
-      - call SplitwiseManager for complex/adjustment-only scenarios.
-    - If the user asks "Whom do I have to pay?", "Who has to pay me?", or "Who has settled?",
-      call read_sql_query_tool with queries on the 'debts' table and then summarize the result.
-
-    Always:
-    - Use tools for calculations and database access.
-    - Keep natural-language explanations clear and concise for the user.
-    """
+    Style: Short, crisp responses. Use tables for multiple items.
+    MANDATORY: Ensure the user ALWAYS gets a confirmation message if an action (Save/Update/Create) was performed.
+    """,
 )
 
 # --- RUNNER ---
@@ -294,25 +185,84 @@ async def process_chat(message: str) -> str:
     events = await runner.run_debug(message)
     
     # Extract text from the last event that has it
+    # Extract text from the last event that has it
+    # Extract text from the last event that has it
+    # Extract text from the last event that has it
+    try:
+        with open("debug_events.log", "w") as f:
+            for i, event in enumerate(events):
+                f.write(f"Event {i}: {type(event)} - {str(event)}\n")
+    except Exception as e:
+        logger.error(f"Failed to write debug log: {e}")
+
+    last_tool_output = None
+
     for event in reversed(events):
-        # Check for 'text' attribute directly
-        if hasattr(event, "text") and event.text:
-            return event.text
-        
-        # Check for 'parts' in 'content' (common in Gemini response events)
-        if hasattr(event, "parts"):
-             # event.parts is likely a list of Part objects
-             for part in event.parts:
-                 if hasattr(part, "text") and part.text:
-                     return part.text
-        
-        # Fallback: check content attribute
-        if hasattr(event, "content") and event.content:
-            # If content is a ModelResponse or similar object with parts
-            if hasattr(event.content, "parts"):
-                for part in event.content.parts:
-                    if hasattr(part, "text") and part.text:
-                        return part.text
-            return str(event.content)
+        logger.info(f"Processing event type: {type(event)}")
+        try:
+            # Check for tool output in event
+            # (Adjust based on actual event structure for ToolReturn/ToolOutput)
+            # If we see a tool output, capture it as a potential fallback
+            # We assume 'parts' might contain it, or 'output' attr.
+            # Introspecting event...
+            if getattr(event, "output", None):
+                 # ToolReturn often has 'output'
+                 last_tool_output = str(event.output)
             
+            # 1. Direct text attribute
+            if getattr(event, "text", None):
+                return event.text
+            
+            # 2. Content object
+            content = getattr(event, "content", None)
+            if content:
+                if isinstance(content, str):
+                    return content
+                
+                parts = getattr(content, "parts", None)
+                if parts:
+                    for part in parts:
+                        if isinstance(part, str):
+                            return part
+                        if getattr(part, "text", None):
+                            return part.text
+                        
+                        # Check for FunctionResponse
+                        func_resp = getattr(part, "function_response", None)
+                        if func_resp:
+                            # It might be an object or dict.
+                            # Based on logs: FunctionResponse(..., response={'result': ...})
+                            resp = getattr(func_resp, "response", None)
+                            if resp and isinstance(resp, dict):
+                                if 'result' in resp:
+                                    last_tool_output = str(resp['result'])
+                                else:
+                                    last_tool_output = str(resp)
+
+                if getattr(content, "text", None):
+                   return content.text
+
+            # 3. Parts on the event
+            parts = getattr(event, "parts", None)
+            if parts:
+                for part in parts:
+                    # Check if part is text
+                    if isinstance(part, str):
+                        return part
+                    if getattr(part, "text", None):
+                         return part.text
+                    
+                    # Check if part is a Tool Return/Output
+                    # This is tricky without exact types, but let's try generic attrs
+                    if getattr(part, "output", None):
+                        last_tool_output = str(part.output)
+
+        except Exception as e:
+            logger.error(f"Error extracting text from event: {e}")
+            continue
+            
+    if last_tool_output:
+        logger.info("No agent text found, returning last tool output as fallback.")
+        return last_tool_output
+
     return "No response from agent."
