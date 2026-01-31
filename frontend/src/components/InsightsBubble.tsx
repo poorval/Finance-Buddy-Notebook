@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
 import api from "@/utils/api";
+import { getService } from '@/services/dataService';
 
 interface CategoryTotal {
     category: string;
@@ -17,9 +18,10 @@ export function InsightsBubble() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await api.get('/insights');
+                const service = getService();
+                const categoryTotals = await service.getCategoryTotals();
                 // Ensure data is sorted by total descending
-                const sorted = (res.data || []).sort((a: CategoryTotal, b: CategoryTotal) => b.total - a.total);
+                const sorted = (categoryTotals || []).sort((a: CategoryTotal, b: CategoryTotal) => b.total - a.total);
                 setData(sorted);
             } catch (err) {
                 console.error("Failed to fetch insights", err);
@@ -32,7 +34,7 @@ export function InsightsBubble() {
     }, []);
 
     const formatCurrency = (val: number) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val);
     };
 
     if (loading) {

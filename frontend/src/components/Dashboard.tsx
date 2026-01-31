@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import api from '@/utils/api';
+import { getService } from '@/services/dataService';
 import { PieChart, Pie, Cell, Label } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import {
@@ -35,9 +36,10 @@ export function Dashboard({ refreshTrigger }: { refreshTrigger: number }) {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await api.get('/insights');
+                const service = getService();
+                const categoryTotals = await service.getCategoryTotals();
                 // Assign colors to data
-                const processedData = res.data.map((item: any, index: number) => ({
+                const processedData = categoryTotals.map((item: any, index: number) => ({
                     ...item,
                     fill: CHART_COLORS[index % CHART_COLORS.length]
                 }));
@@ -112,7 +114,7 @@ export function Dashboard({ refreshTrigger }: { refreshTrigger: number }) {
                                                         y={viewBox.cy}
                                                         className="fill-foreground text-3xl font-bold"
                                                     >
-                                                        ${totalSpent.toLocaleString()}
+                                                        {totalSpent.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
                                                     </tspan>
                                                     <tspan
                                                         x={viewBox.cx}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
+import { getService } from '@/services/dataService';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,11 +10,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import api from "@/utils/api";
 
 interface ExpenseFormBubbleProps {
-    onSubmit: (description: string, amount: string, category: string) => void;
+    onSubmit: (description: string, amount: string, category: string, timestamp: string) => void;
     onCancel?: () => void;
 }
 
 export function ExpenseFormBubble({ onSubmit, onCancel }: ExpenseFormBubbleProps) {
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [time, setTime] = useState(new Date().toTimeString().split(' ')[0].substring(0, 5));
     const [description, setDescription] = useState("");
     const [amount, setAmount] = useState("");
     const [category, setCategory] = useState("");
@@ -28,10 +31,10 @@ export function ExpenseFormBubble({ onSubmit, onCancel }: ExpenseFormBubbleProps
 
     const fetchCategories = async () => {
         try {
-            const res = await api.get('/insights');
-            if (res.data && Array.isArray(res.data)) {
-                const fetchedCats = res.data.map((c: any) => c.category);
-                const unique = Array.from(new Set([...categories, ...fetchedCats]));
+            const service = getService();
+            const cats = await service.getCategories();
+            if (cats && cats.length > 0) {
+                const unique = Array.from(new Set([...categories, ...cats]));
                 setCategories(unique);
             }
         } catch (e) {
@@ -42,12 +45,14 @@ export function ExpenseFormBubble({ onSubmit, onCancel }: ExpenseFormBubbleProps
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const finalCategory = isCustomCategory ? customCategory : category;
-        if (!description || !amount || !finalCategory) return;
+        if (!description || !amount || !finalCategory || !date || !time) return;
+
+        // Combine date and time
+        const timestamp = `${date} ${time}:00`; // Simple format compatible with backend YYYY-MM-DD HH:MM:SS
 
         setSubmitted(true);
-        // Delay callback slightly to allow exit animation if needed, but here we just switch state
         setTimeout(() => {
-            onSubmit(description, amount, finalCategory);
+            onSubmit(description, amount, finalCategory, timestamp);
         }, 500);
     };
 
@@ -81,6 +86,28 @@ export function ExpenseFormBubble({ onSubmit, onCancel }: ExpenseFormBubbleProps
                             <CardTitle className="text-base">Add Expense</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3 px-4 pb-2">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                    <Label htmlFor="date" className="text-xs">Date</Label>
+                                    <Input
+                                        id="date"
+                                        type="date"
+                                        value={date}
+                                        onChange={(e) => setDate(e.target.value)}
+                                        className="h-8 text-sm px-2"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="time" className="text-xs">Time</Label>
+                                    <Input
+                                        id="time"
+                                        type="time"
+                                        value={time}
+                                        onChange={(e) => setTime(e.target.value)}
+                                        className="h-8 text-sm px-2"
+                                    />
+                                </div>
+                            </div>
                             <div className="space-y-1">
                                 <Label htmlFor="desc" className="text-xs">Description</Label>
                                 <Input

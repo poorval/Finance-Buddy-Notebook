@@ -13,8 +13,10 @@ __all__ = [
     'init_db', 
     'read_sql_query_tool', 'execute_sql_update_tool',
     'save_transaction_tool', 'add_debt_tool', 'add_category_tool',
-    'get_all_transactions', 'get_category_totals', 'get_dashboard_stats',
-    'record_group_debts'
+    'get_all_transactions', 'update_transaction', 'get_category_totals', 'get_dashboard_stats',
+    'record_group_debts',
+    'record_group_debts',
+    'analyze_spending_personality'
 ]
 
 class Transaction(BaseModel):
@@ -251,13 +253,132 @@ def add_category_tool(name: str, budget: float = 100.0) -> str:
     finally:
         adapter.close()
 
-def get_all_transactions() -> List[Dict]:
+def get_all_transactions(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    category: Optional[str] = None,
+    min_amount: Optional[float] = None
+) -> List[Dict]:
     adapter = get_adapter()
     user_id = get_user_context()
+    
+    query = "SELECT * FROM transactions WHERE user_id = ?"
+    params = [user_id]
+    
+    if start_date:
+        query += " AND timestamp >= ?"
+        params.append(start_date)
+    if end_date:
+        query += " AND timestamp <= ?"
+        # Check if end_date is just YYYY-MM-DD and append time to make it inclusive
+        if len(end_date) == 10:
+             params.append(f"{end_date} 23:59:59")
+        else:
+             params.append(end_date)
+    if category and category != "All":
+        query += " AND category = ?"
+        params.append(category)
+    if min_amount is not None:
+        query += " AND amount >= ?"
+        params.append(min_amount)
+        
+    query += " ORDER BY id DESC"
+    
     try:
-        return adapter.fetch_all("SELECT * FROM transactions WHERE user_id = ? ORDER BY id DESC", (user_id,))
+        return adapter.fetch_all(query, tuple(params))
     finally:
         adapter.close()
+
+def update_transaction(transaction_id: int, data: Dict[str, Any]) -> str:
+    adapter = get_adapter()
+    user_id = get_user_context()
+    
+    # Allowed fields to update
+    allowed_fields = {'description', 'amount', 'category', 'timestamp'}
+    updates = []
+    params = []
+    
+    for key, value in data.items():
+        if key in allowed_fields:
+            updates.append(f"{key} = ?")
+            params.append(value)
+            
+    if not updates:
+        return "ERROR: No valid fields to update."
+        
+    query = f"UPDATE transactions SET {', '.join(updates)} WHERE id = ? AND user_id = ?"
+    params.append(transaction_id)
+    params.append(user_id)
+    
+    try:
+        adapter.execute(query, tuple(params))
+        return "SUCCESS"
+    except Exception as e:
+        return f"ERROR: Failed to update transaction. {str(e)}"
+    finally:
+        adapter.close()
+
+def analyze_spending_personality() -> Dict[str, str]:
+    """
+    Analyzes the user's spending habits and returns a personality profile.
+    """
+    totals = get_category_totals() # Returns [{'category': 'X', 'total': 100}, ...]
+    if not totals:
+        return {
+            "title": "The Blank Slate",
+            "emoji": "📝",
+            "description": "You haven't spent anything yet! Start tracking to see your persona."
+        }
+    
+    # Sort by spend desc
+    totals.sort(key=lambda x: x['total'], reverse=True)
+    top_cat = totals[0]['category']
+    total_spent = sum(t['total'] for t in totals)
+    
+    # Simple Heuristics
+    if top_cat == "Dining":
+        return {
+            "title": "The Foodie",
+            "emoji": "🍔",
+            "description": "You love good food and good times. Your biggest investment is in your taste buds!"
+        }
+    elif top_cat == "Shopping":
+        return {
+            "title": "The Shopaholic",
+            "emoji": "🛍️",
+            "description": "Retail therapy is your go-to. You have great taste, but watch that budget!"
+        }
+    elif top_cat == "Transport":
+        return {
+            "title": "The Traveler",
+            "emoji": "✈️",
+            "description": "Always on the move! Your journey is just as important as the destination."
+        }
+    elif top_cat == "Entertainment":
+        return {
+            "title": "The Social Butterfly",
+            "emoji": "🦋",
+            "description": "You live for the moment. Fun and experiences are your top priority."
+        }
+    elif top_cat == "Bills":
+        return {
+            "title": "The Responsible Adult",
+            "emoji": "💼",
+            "description": "You take care of business first. Your stability is admirable!"
+        }
+    elif top_cat == "Investments" or top_cat == "Savings": # If these cats existed
+         return {
+            "title": "The Future Tycoon",
+            "emoji": "📈",
+            "description": "You're playing the long game. Your future self will thank you."
+        }
+    
+    # fallback
+    return {
+        "title": "The Balanced Spender",
+        "emoji": "⚖️",
+        "description": f"You have a diverse spending portfolio, led slightly by {top_cat}."
+    }
 
 def get_category_totals() -> List[Dict]:
     adapter = get_adapter()

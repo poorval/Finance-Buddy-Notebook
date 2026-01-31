@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import api from '@/utils/api';
+import { getService } from '@/services/dataService';
 import { Dashboard } from './Dashboard';
 import { TransactionList } from './TransactionList';
 import { BudgetFlipCard } from './BudgetFlipCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Loader2 } from "lucide-react"
+
+const AnalyticsView = lazy(() => import('./AnalyticsView'));
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSign, CreditCard, Activity, Wallet, ArrowLeftRight } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -29,11 +33,14 @@ export function DashboardView({ refreshTrigger, onLayoutChange, isChatRight }: D
         active_debts: 0
     });
 
+    const [activeTab, setActiveTab] = useState("overview");
+
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await api.get('/stats');
-                setStats(res.data);
+                const service = getService();
+                const data = await service.getStats();
+                setStats(data);
             } catch (error) {
                 console.error("Error fetching stats:", error);
             }
@@ -42,9 +49,9 @@ export function DashboardView({ refreshTrigger, onLayoutChange, isChatRight }: D
     }, [refreshTrigger]);
 
     const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
+        return new Intl.NumberFormat('en-IN', {
             style: 'currency',
-            currency: 'USD',
+            currency: 'INR',
         }).format(amount);
     };
 
@@ -60,7 +67,7 @@ export function DashboardView({ refreshTrigger, onLayoutChange, isChatRight }: D
                     )}
                 </div>
             </div>
-            <Tabs defaultValue="overview" className="space-y-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
                 <TabsList>
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -123,17 +130,23 @@ export function DashboardView({ refreshTrigger, onLayoutChange, isChatRight }: D
                             <Dashboard refreshTrigger={refreshTrigger} />
                         </div>
                         <div className="col-span-3">
-                            <TransactionList refreshTrigger={refreshTrigger} />
+                            <TransactionList
+                                refreshTrigger={refreshTrigger}
+                                limit={100}
+                                onViewMore={() => setActiveTab("analytics")}
+                            />
                         </div>
                     </div>
                 </TabsContent>
                 <TabsContent value="analytics" className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                        <div className="col-span-7">
-                            <Card className="h-[400px] flex items-center justify-center text-muted-foreground">
-                                Analytics View Placeholder
-                            </Card>
-                        </div>
+                    <div className="grid gap-4">
+                        <Suspense fallback={
+                            <div className="flex h-[400px] items-center justify-center">
+                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                            </div>
+                        }>
+                            <AnalyticsView />
+                        </Suspense>
                     </div>
                 </TabsContent>
             </Tabs>

@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
-from database import init_db, get_all_transactions, get_category_totals, get_dashboard_stats, set_storage_context, save_transaction_tool, add_debt_tool, set_user_context
+from database import init_db, get_all_transactions, get_category_totals, get_dashboard_stats, set_storage_context, save_transaction_tool, add_debt_tool, set_user_context, analyze_spending_personality
 from agents import process_chat
 import os
 import logging
@@ -133,7 +133,7 @@ async def chat_endpoint(request: ChatRequest, user_id: str = Depends(get_current
     logger.info(f"Chat endpoint called by {user_id}. Message: {request.message}")
     set_user_context(user_id)
     try:
-        response_text = await process_chat(request.message)
+        response_text = await process_chat(user_id, request.message)
         logger.info("Chat processed successfully")
         return {"response": response_text}
     except Exception as e:
@@ -141,15 +141,32 @@ async def chat_endpoint(request: ChatRequest, user_id: str = Depends(get_current
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/transactions")
-def get_transactions_endpoint(user_id: str = Depends(get_current_user)):
-    logger.info(f"Transactions endpoint accessed by {user_id}")
+def get_transactions_endpoint(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    category: Optional[str] = None,
+    min_amount: Optional[float] = None,
+    user_id: str = Depends(get_current_user)
+):
+    logger.info(f"Transactions endpoint accessed by {user_id} with filters: start={start_date}, end={end_date}, cat={category}")
     set_user_context(user_id)
     try:
-        data = get_all_transactions()
+        data = get_all_transactions(start_date, end_date, category, min_amount)
         logger.info(f"Returning {len(data) if data else 0} transactions")
         return data
     except Exception as e:
         logger.error(f"Error in get_transactions_endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/analytics/personality")
+def get_personality_endpoint(user_id: str = Depends(get_current_user)):
+    logger.info(f"Personality endpoint accessed by {user_id}")
+    set_user_context(user_id)
+    try:
+        data = analyze_spending_personality()
+        return data
+    except Exception as e:
+        logger.error(f"Error in get_personality_endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 class BudgetUpdate(BaseModel):
@@ -196,6 +213,32 @@ def create_transaction_endpoint(transaction: TransactionCreate, user_id: str = D
         raise he
     except Exception as e:
         logger.error(f"Error in create_transaction_endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+class TransactionUpdate(BaseModel):
+    description: Optional[str] = None
+    amount: Optional[float] = None
+    category: Optional[str] = None
+    timestamp: Optional[str] = None
+
+@app.put("/transactions/{transaction_id}")
+def update_transaction_endpoint(transaction_id: int, transaction: TransactionUpdate, user_id: str = Depends(get_current_user)):
+    logger.info(f"Update transaction {transaction_id} request by {user_id}: {transaction}")
+    set_user_context(user_id)
+    try:
+        from database import update_transaction
+        # filter out None
+        data = {k: v for k, v in transaction.dict().items() if v is not None}
+        result = update_transaction(transaction_id, data)
+        
+        if "ERROR:" in result:
+             raise HTTPException(status_code=500, detail=result)
+        
+        return {"message": "Transaction updated"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error in update_transaction_endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/insights")

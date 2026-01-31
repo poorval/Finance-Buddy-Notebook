@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
 // Import api
 import api from "@/utils/api"
+import { getService } from '@/services/dataService';
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -98,12 +99,15 @@ export function Chat({ onTransactionComplete }: ChatProps) {
         }
     }
 
-    const handleExpenseBubbleSubmit = async (desc: string, amt: string, cat: string, index: number) => {
+    const handleExpenseBubbleSubmit = async (desc: string, amt: string, cat: string, timestamp: string, index: number) => {
         try {
-            await api.post("/transactions", {
+            const service = getService();
+            await service.addTransaction({
                 description: desc,
                 amount: parseFloat(amt),
-                category: cat
+                category: cat,
+                timestamp: timestamp || new Date().toISOString(),
+                user_id: 'local_user' // Default for local, service will handle if cloud needs token from context but here we are in frontend
             });
 
             // Mark form as submitted
@@ -168,7 +172,7 @@ export function Chat({ onTransactionComplete }: ChatProps) {
                                 {msg.type === "form" ? (
                                     <div className="mt-1">
                                         <ExpenseFormBubble
-                                            onSubmit={(d, a, c) => handleExpenseBubbleSubmit(d, a, c, index)}
+                                            onSubmit={(d, a, c, t) => handleExpenseBubbleSubmit(d, a, c, t, index)}
                                             onCancel={() => {
                                                 setMessages(prev => prev.filter((_, i) => i !== index));
                                             }}

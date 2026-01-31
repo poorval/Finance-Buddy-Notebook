@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import api from '@/utils/api';
+import { getService } from '@/services/dataService';
 
 interface BudgetFlipCardProps {
     currentBudget: number;
@@ -18,9 +19,9 @@ export function BudgetFlipCard({ currentBudget, onBudgetUpdate, onSuccess }: Bud
     const [loading, setLoading] = useState(false);
 
     const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
+        return new Intl.NumberFormat('en-IN', {
             style: 'currency',
-            currency: 'USD',
+            currency: 'INR',
         }).format(amount);
     };
 
@@ -35,7 +36,13 @@ export function BudgetFlipCard({ currentBudget, onBudgetUpdate, onSuccess }: Bud
             const val = parseFloat(newBudget);
             if (isNaN(val) || val < 0) return;
 
-            await api.post('/budget', { amount: val });
+            const service = getService();
+            // In local usage: getService() is available from '@/services/dataService' via import 
+            // but we need to import { getService } in this file. 
+            // It was not imported! It was 'import api'.
+            // I need to add the import first.
+            await service.updateBudget(val);
+
             onSuccess(val);
             setIsFlipped(false);
             if (onBudgetUpdate) onBudgetUpdate();
