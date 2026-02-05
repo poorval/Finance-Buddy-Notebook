@@ -11,8 +11,14 @@ from database import (
     add_debt_tool, 
     read_sql_query_tool, 
     record_group_debts,
-    execute_sql_update_tool
+    execute_sql_update_tool,
+    add_category_tool
 )
+import logging
+from typing import Dict
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Load .env
 env_path = pathlib.Path(__file__).parent / '.env'
@@ -30,17 +36,27 @@ retry_config = types.HttpRetryOptions(
     http_status_codes=[429, 500, 503, 504]
 )
 
-# --- AGENTS ---
+# --- SINGLE FLATTENED AGENT ---
 
-# 1. Category Classifier
-root_agent = Agent(
-    name="CategoryClassifier",
+orchestrator_agent = Agent(
+    name="FinanceAssistant",
     model=Gemini(
-        model="gemini-2.5-flash-lite",
+        model="gemini-3-flash-preview", # Keeping user's preferred model
         api_key=api_key,
+        generation_config={"temperature": 0.3},
         retry_options=retry_config
     ),
-    description="An intelligent agent that enriches transaction data.",
+    # ALL tools available to the main agent
+    tools=[
+        save_transaction_tool, 
+        add_debt_tool, 
+        read_sql_query_tool, 
+        record_group_debts, 
+        execute_sql_update_tool, 
+        add_category_tool,
+        google_search
+    ],
+    description="An intelligent finance assistant that handles transactions, debts, analysis, and database updates.",
     instruction="""
         You are an autonomous Transaction Classifier. 
         
@@ -622,4 +638,8 @@ async def process_chat(message: str) -> str:
                         return part.text
             return str(event.content)
             
-    return "No response from agent."
+        return "I processed that, but I'm not sure what to say. (No text response generated)"
+
+    except Exception as e:
+        logger.error(f"Error in process_chat: {e}")
+        return f"Sorry, I encountered an error: {str(e)}"

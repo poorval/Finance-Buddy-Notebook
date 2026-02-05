@@ -6,15 +6,24 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
 import { cn } from "@/lib/utils"
+// Import api
+import api from "@/utils/api"
+import { getService } from '@/services/dataService';
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
+import { AddExpenseDialog } from "./AddExpenseDialog"
+import { ExpenseFormBubble } from "./ExpenseFormBubble"
+import { InsightsBubble } from "./InsightsBubble"
+
 interface Message {
     role: "user" | "assistant"
     content: string
+    type?: "text" | "form" | "insights"
+    isFormSubmitted?: boolean
 }
 
 interface ChatProps {
@@ -25,15 +34,19 @@ export function Chat({ onTransactionComplete }: ChatProps) {
     const [messages, setMessages] = React.useState<Message[]>([
         { role: "assistant", content: "Hello! I'm FrugalAgent. How can I help you manage your expenses today?" }
     ])
+    // ... existing state ...
     const [input, setInput] = React.useState("")
     const [isLoading, setIsLoading] = React.useState(false)
+    const [showAddExpense, setShowAddExpense] = React.useState(false)
     const scrollAreaRef = React.useRef<HTMLDivElement>(null)
 
     const scrollToBottom = () => {
         if (scrollAreaRef.current) {
             const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
             if (scrollContainer) {
-                scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                setTimeout(() => {
+                    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                }, 100);
             }
         }
     }
@@ -42,24 +55,14 @@ export function Chat({ onTransactionComplete }: ChatProps) {
         scrollToBottom()
     }, [messages])
 
-    const handleSend = async () => {
-        if (!input.trim()) return
-
-        const userMessage: Message = { role: "user", content: input }
+    const processMessage = async (text: string) => {
+        const userMessage: Message = { role: "user", content: text }
         setMessages(prev => [...prev, userMessage])
-        setInput("")
         setIsLoading(true)
 
         try {
-            const response = await fetch("http://127.0.0.1:8000/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: userMessage.content }),
-            })
-
-            if (!response.ok) throw new Error("Failed to fetch response")
-
-            const data = await response.json()
+            const response = await api.post("/chat", { message: userMessage.content })
+            const data = response.data
             const botMessage: Message = { role: "assistant", content: data.response }
             setMessages(prev => [...prev, botMessage])
 
@@ -74,20 +77,59 @@ export function Chat({ onTransactionComplete }: ChatProps) {
         }
     }
 
+    const handleSend = async () => {
+        if (!input.trim()) return
+        const text = input;
+        setInput("")
+        await processMessage(text);
+    }
+
     const handleQuickAction = (action: string) => {
-        let prompt = ""
         switch (action) {
             case "add":
-                prompt = "I want to add an expense."
+                // Instead of modal, append form message
+                setMessages(prev => [...prev, { role: "assistant", content: "", type: "form" }])
                 break
             case "split":
-                prompt = "I want to split an expense."
+                alert("Split Bill feature is coming soon!");
                 break
             case "insights":
-                prompt = "Show me my spending insights."
+                setMessages(prev => [...prev, { role: "assistant", content: "", type: "insights" }])
                 break
         }
-        setInput(prompt)
+    }
+
+    const handleExpenseBubbleSubmit = async (desc: string, amt: string, cat: string, timestamp: string, index: number) => {
+        try {
+            const service = getService();
+            await service.addTransaction({
+                description: desc,
+                amount: parseFloat(amt),
+                category: cat,
+                timestamp: timestamp || new Date().toISOString(),
+                user_id: 'local_user' // Default for local, service will handle if cloud needs token from context but here we are in frontend
+            });
+
+            // Mark form as submitted
+            setMessages(prev => prev.map((msg, i) => i === index ? { ...msg, isFormSubmitted: true } : msg));
+
+            // Add success message
+            setMessages(prev => [...prev, {
+                role: "assistant",
+                content: `Success! Added **$${amt}** for **${desc}** in **${cat}**.`
+            }]);
+
+            // Trigger refresh
+            if (onTransactionComplete) {
+                onTransactionComplete();
+            }
+        } catch (error) {
+            console.error("Failed to add transaction", error);
+            setMessages(prev => [...prev, {
+                role: "assistant",
+                content: "Error: Failed to add transaction. Please try again."
+            }]);
+        }
     }
 
     return (
@@ -127,25 +169,40 @@ export function Chat({ onTransactionComplete }: ChatProps) {
                                     )}
                                 </Avatar>
 
-                                <div
-                                    className={cn(
-                                        "rounded-2xl px-4 py-3 text-sm shadow-sm",
-                                        msg.role === "user"
-                                            ? "bg-primary text-primary-foreground rounded-tr-sm"
-                                            : "bg-muted/50 border rounded-tl-sm"
-                                    )}
-                                >
-                                    <div className="prose dark:prose-invert max-w-none text-sm break-words leading-relaxed">
-                                        <ReactMarkdown
-                                            remarkPlugins={[remarkGfm]}
-                                            components={{
-                                                p: ({ node, ...props }) => <p className="mb-1 last:mb-0" {...props} />
+                                {msg.type === "form" ? (
+                                    <div className="mt-1">
+                                        <ExpenseFormBubble
+                                            onSubmit={(d, a, c, t) => handleExpenseBubbleSubmit(d, a, c, t, index)}
+                                            onCancel={() => {
+                                                setMessages(prev => prev.filter((_, i) => i !== index));
                                             }}
-                                        >
-                                            {msg.content}
-                                        </ReactMarkdown>
+                                        />
                                     </div>
-                                </div>
+                                ) : msg.type === "insights" ? (
+                                    <div className="mt-1 w-full max-w-full">
+                                        <InsightsBubble />
+                                    </div>
+                                ) : (
+                                    <div
+                                        className={cn(
+                                            "rounded-2xl px-4 py-3 text-sm shadow-sm",
+                                            msg.role === "user"
+                                                ? "bg-primary text-primary-foreground rounded-tr-sm"
+                                                : "bg-muted/50 border rounded-tl-sm"
+                                        )}
+                                    >
+                                        <div className="prose dark:prose-invert max-w-none text-sm break-words leading-relaxed">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={{
+                                                    p: ({ node, ...props }) => <p className="mb-1 last:mb-0" {...props} />
+                                                }}
+                                            >
+                                                {msg.content}
+                                            </ReactMarkdown>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ))}
                         {isLoading && (
@@ -164,13 +221,14 @@ export function Chat({ onTransactionComplete }: ChatProps) {
                 </ScrollArea>
             </div>
 
+
             <div className="p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 space-y-4">
                 {/* Quick Actions */}
                 <div className="flex gap-2 w-full overflow-x-auto pb-1 no-scrollbar">
                     <Button variant="outline" size="sm" onClick={() => handleQuickAction("add")} className="gap-2 h-8 text-xs rounded-full bg-background hover:bg-muted/50 transition-colors">
                         <Plus className="w-3.5 h-3.5" /> Add Expense
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleQuickAction("split")} className="gap-2 h-8 text-xs rounded-full bg-background hover:bg-muted/50 transition-colors">
+                    <Button variant="outline" size="sm" onClick={() => handleQuickAction("split")} className="gap-2 h-8 text-xs rounded-full bg-background hover:bg-muted/50 transition-colors opacity-50 cursor-not-allowed" title="Coming Soon">
                         <Split className="w-3.5 h-3.5" /> Split Bill
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => handleQuickAction("insights")} className="gap-2 h-8 text-xs rounded-full bg-background hover:bg-muted/50 transition-colors">
