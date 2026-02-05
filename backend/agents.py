@@ -613,30 +613,31 @@ Always:
 runner = InMemoryRunner(agent=orchestrator_agent, app_name="agents")
 
 async def process_chat(message: str) -> str:
-    # run_debug returns a list of events
-    events = await runner.run_debug(message)
-    
-    # Extract text from the last event that has it
-    for event in reversed(events):
-        # Check for 'text' attribute directly
-        if hasattr(event, "text") and event.text:
-            return event.text
+    try:
+        # run_debug returns a list of events
+        events = await runner.run_debug(message)
         
-        # Check for 'parts' in 'content' (common in Gemini response events)
-        if hasattr(event, "parts"):
-             # event.parts is likely a list of Part objects
-             for part in event.parts:
-                 if hasattr(part, "text") and part.text:
-                     return part.text
-        
-        # Fallback: check content attribute
-        if hasattr(event, "content") and event.content:
-            # If content is a ModelResponse or similar object with parts
-            if hasattr(event.content, "parts"):
-                for part in event.content.parts:
-                    if hasattr(part, "text") and part.text:
-                        return part.text
-            return str(event.content)
+        # Extract text from the last event that has it
+        for event in reversed(events):
+            # Check for 'text' attribute directly
+            if hasattr(event, "text") and event.text:
+                return event.text
+            
+            # Check for 'parts' in 'content' (common in Gemini response events)
+            if hasattr(event, "parts"):
+                 # event.parts is likely a list of Part objects
+                 for part in event.parts:
+                     if hasattr(part, "text") and part.text:
+                         return part.text
+            
+            # Fallback: check content attribute
+            if hasattr(event, "content") and event.content:
+                # If content is a ModelResponse or similar object with parts
+                if hasattr(event.content, "parts"):
+                    for part in event.content.parts:
+                        if hasattr(part, "text") and part.text:
+                            return part.text
+                return str(event.content)
             
         return "I processed that, but I'm not sure what to say. (No text response generated)"
 
