@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import api from "@/utils/api";
+
 
 interface ExpenseFormBubbleProps {
     onSubmit: (description: string, amount: string, category: string, timestamp: string) => void;

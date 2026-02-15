@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useEffect, useState, useMemo } from 'react';
-import api from '@/utils/api';
 import { getService } from '@/services/dataService';
 import { PieChart, Pie, Cell, Label } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"

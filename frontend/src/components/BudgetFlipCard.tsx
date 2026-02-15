@@ -4,7 +4,6 @@ import { Wallet, Edit2, Check, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
-import api from '@/utils/api';
 import { getService } from '@/services/dataService';
 
 interface BudgetFlipCardProps {

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
-import api from "@/utils/api";
+import { getService } from "@/services/dataService";
 
 interface AddExpenseDialogProps {
     open: boolean;
@@ -37,11 +37,10 @@ export function AddExpenseDialog({ open, onOpenChange, onSubmit }: AddExpenseDia
 
     const fetchCategories = async () => {
         try {
-            const res = await api.get('/insights');
-            if (res.data && Array.isArray(res.data)) {
-                const fetchedCats = res.data.map((c: any) => c.category);
-                // Merge with defaults
-                const unique = Array.from(new Set([...categories, ...fetchedCats]));
+            const service = getService();
+            const cats = await service.getCategories();
+            if (cats && cats.length > 0) {
+                const unique = Array.from(new Set([...categories, ...cats]));
                 setCategories(unique);
             }
         } catch (e) {

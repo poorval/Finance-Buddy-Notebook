@@ -61,18 +61,25 @@ orchestrator_agent = Agent(
     instruction="""
     Role: Personal Finance Assistant.
     Goal: Help the user manage money by saving transactions, tracking debts, and analyzing spending.
+    Currency: Indian Rupees (₹ / INR). Always display amounts in ₹.
+
+    DATABASE SCHEMA:
+    - transactions(id INTEGER PK, timestamp TEXT, description TEXT, amount REAL, category TEXT, split_details TEXT, user_id TEXT)
+      NOTE: The date/time column is called "timestamp" (format: "YYYY-MM-DD HH:MM:SS"). There is NO column called "date".
+    - categories(id INTEGER PK, name TEXT, budget REAL, user_id TEXT)
+    - debts(id INTEGER PK, from_person TEXT, to_person TEXT, amount REAL, description TEXT, timestamp TEXT, user_id TEXT)
 
     Categories: [Groceries, Dining, Transport, Entertainment, Shopping, Bills, Health, Investment, Education, Utilities, Others]
 
     PROCEDURES:
 
-    1. LOGGING TRANSACTIONS ("Spent $50 on groceries")
+    1. LOGGING TRANSACTIONS ("Spent ₹50 on groceries")
        - Infer the Category from the description.
        - If unclear, use 'google_search' to check (e.g., "What kind of shop is X?").
        - CALL 'save_transaction_tool' with the correct details.
        - CONFIRM: "Saved: [Description] - [Amount]"
 
-    2. MANAGING DEBTS ("I owe John $50", "Split lunch $20 with Mary")
+    2. MANAGING DEBTS ("I owe John ₹50", "Split lunch ₹20 with Mary")
        - Use 'record_group_debts' to record split bills.
        - Use 'add_debt_tool' for direct IOU logging if simpler.
        - Use 'read_sql_query_tool' to check "Who owes me?".
@@ -130,11 +137,16 @@ class UserSessionManager:
 # Global Manager Instance
 session_manager = UserSessionManager(max_history_turns=10)
 
-async def process_chat(user_id: str, message: str) -> str:
+async def process_chat(user_id: str, message: str, storage_mode: str = "cloud") -> dict:
     """
     Process a chat message for a specific user.
+    Returns a dict with 'response' (str) and 'actions' (list of dicts).
+    When storage_mode is 'local', tool calls like save_transaction are captured
+    as actions instead of being executed server-side.
     """
-    logger.info(f"Processing chat for user_id={user_id}")
+    logger.info(f"Processing chat for user_id={user_id}, storage_mode={storage_mode}")
+    
+    actions = []
     
     # Get or create runner for this user
     runner = session_manager.get_runner(user_id)
@@ -146,35 +158,62 @@ async def process_chat(user_id: str, message: str) -> str:
         # Increment turn count (and potentially reset for next time)
         session_manager.increment_turn(user_id)
         
-        # Extract response text
+        # Extract response text and capture tool calls
         last_tool_output = None
-        
-        # Debug logging
-        try:
-             # Just log to console or rotating file to avoid massive single file
-             pass 
-        except Exception:
-            pass
+        response_text = None
 
+        # First pass: capture all function calls as actions
+        for event in events:
+            try:
+                content = getattr(event, "content", None)
+                if not content:
+                    continue
+                parts = getattr(content, "parts", None)
+                if not parts:
+                    continue
+                for part in parts:
+                    func_call = getattr(part, "function_call", None)
+                    if func_call:
+                        fn_name = getattr(func_call, "name", None)
+                        fn_args = getattr(func_call, "args", None)
+                        if fn_name and fn_args:
+                            # Convert args to plain dict
+                            args_dict = dict(fn_args) if fn_args else {}
+                            actions.append({
+                                "type": fn_name,
+                                "data": args_dict
+                            })
+            except Exception as e:
+                logger.error(f"Error capturing function call: {e}")
+                continue
+
+        # Second pass (reversed): find the final text response
         for event in reversed(events):
             try:
                 # 1. Direct text
                 if getattr(event, "text", None):
-                    return event.text
+                    response_text = event.text
+                    break
                 
                 # 2. Content parts
                 content = getattr(event, "content", None)
                 if content:
                     if isinstance(content, str):
-                        return content
+                        response_text = content
+                        break
                     
                     parts = getattr(content, "parts", None)
                     if parts:
+                        found = False
                         for part in parts:
                             if isinstance(part, str):
-                                return part
+                                response_text = part
+                                found = True
+                                break
                             if getattr(part, "text", None):
-                                return part.text
+                                response_text = part.text
+                                found = True
+                                break
                                 
                             # Fallback for tool outputs if no text found yet
                             func_resp = getattr(part, "function_response", None)
@@ -182,16 +221,21 @@ async def process_chat(user_id: str, message: str) -> str:
                                 resp = getattr(func_resp, "response", None)
                                 if resp:
                                     last_tool_output = str(resp)
+                        if found:
+                            break
 
             except Exception as e:
                 logger.error(f"Error parsing event: {e}")
                 continue
-                
-        if last_tool_output:
-            return f"(Tool Output): {last_tool_output}"
-            
-        return "I processed that, but I'm not sure what to say. (No text response generated)"
+        
+        if not response_text:
+            if last_tool_output:
+                response_text = f"(Tool Output): {last_tool_output}"
+            else:
+                response_text = "I processed that, but I'm not sure what to say. (No text response generated)"
+
+        return {"response": response_text, "actions": actions}
 
     except Exception as e:
         logger.error(f"Error in process_chat: {e}")
-        return f"Sorry, I encountered an error: {str(e)}"
+        return {"response": f"Sorry, I encountered an error: {str(e)}", "actions": []}

@@ -120,8 +120,13 @@ async def get_current_user(
 class ChatRequest(BaseModel):
     message: str
 
+class ChatAction(BaseModel):
+    type: str
+    data: dict
+
 class ChatResponse(BaseModel):
     response: str
+    actions: List[ChatAction] = []
 
 @app.get("/")
 def read_root():
@@ -129,13 +134,14 @@ def read_root():
     return {"message": "FrugalAgent API is running"}
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest, user_id: str = Depends(get_current_user)):
+async def chat_endpoint(request: ChatRequest, req: Request, user_id: str = Depends(get_current_user)):
     logger.info(f"Chat endpoint called by {user_id}. Message: {request.message}")
     set_user_context(user_id)
+    storage_mode = req.headers.get("X-Storage-Mode", "local")
     try:
-        response_text = await process_chat(user_id, request.message)
-        logger.info("Chat processed successfully")
-        return {"response": response_text}
+        result = await process_chat(user_id, request.message, storage_mode=storage_mode)
+        logger.info(f"Chat processed successfully. Actions: {len(result.get('actions', []))}")
+        return {"response": result["response"], "actions": result.get("actions", [])}
     except Exception as e:
         logger.error(f"Error in chat_endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

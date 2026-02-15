@@ -56,17 +56,32 @@ export function SettingsDialog() {
         setIsSyncing(true)
         setSyncStatus(null)
         try {
-            // Determine direction based on current mode or explicit user choice
-            // For MVP, if we are in 'local', we sync TO cloud (backup).
-            // If in 'cloud', we could sync FROM local (import).
+            // Read local Dexie data
+            const { db } = await import('@/lib/db');
+            const localTransactions = await db.transactions.toArray();
 
-            // Actually, best flow:
-            // "Sync Local Data to Cloud"
-            const fromMode = "local"
-            const toMode = "cloud"
+            if (localTransactions.length === 0) {
+                setSyncStatus("No local data to sync.")
+                return
+            }
 
-            await api.post(`/migrate?from_mode=${fromMode}&to_mode=${toMode}`)
-            setSyncStatus("Data successfully synced to Cloud.")
+            // Send each transaction to the cloud backend
+            let synced = 0;
+            for (const t of localTransactions) {
+                try {
+                    await api.post('/transactions', {
+                        description: t.description,
+                        amount: t.amount,
+                        category: t.category,
+                        split_details: t.split_details || "None"
+                    });
+                    synced++;
+                } catch (err) {
+                    console.error("Failed to sync transaction:", t, err);
+                }
+            }
+
+            setSyncStatus(`Successfully synced ${synced}/${localTransactions.length} transactions to Cloud.`)
         } catch (error) {
             console.error("Sync failed:", error)
             setSyncStatus("Failed to sync data.")

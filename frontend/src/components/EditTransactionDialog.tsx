@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,6 +22,7 @@ export function EditTransactionDialog({ transaction, isOpen, onClose, onSave }: 
     const [date, setDate] = useState("");
     const [time, setTime] = useState("");
     const [loading, setLoading] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
     const [categories, setCategories] = useState<string[]>([]);
 
     useEffect(() => {
@@ -73,6 +75,22 @@ export function EditTransactionDialog({ transaction, isOpen, onClose, onSave }: 
             console.error("Failed to update transaction", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!transaction || transaction.id === undefined) return;
+        setLoading(true);
+        try {
+            const service = getService();
+            await service.deleteTransaction(transaction.id);
+            onSave();
+            onClose();
+        } catch (error) {
+            console.error("Failed to delete transaction", error);
+        } finally {
+            setLoading(false);
+            setConfirmDelete(false);
         }
     };
 
@@ -142,11 +160,36 @@ export function EditTransactionDialog({ transaction, isOpen, onClose, onSave }: 
                         </div>
                     </div>
                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={onClose}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={loading}>
-                        {loading ? "Saving..." : "Save changes"}
-                    </Button>
+                <DialogFooter className="flex !justify-between sm:!justify-between">
+                    <div>
+                        {!confirmDelete ? (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => setConfirmDelete(true)}
+                                disabled={loading}
+                            >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Delete
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={handleDelete}
+                                disabled={loading}
+                            >
+                                {loading ? "Deleting..." : "Confirm Delete"}
+                            </Button>
+                        )}
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => { onClose(); setConfirmDelete(false); }}>Cancel</Button>
+                        <Button onClick={handleSave} disabled={loading}>
+                            {loading ? "Saving..." : "Save changes"}
+                        </Button>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

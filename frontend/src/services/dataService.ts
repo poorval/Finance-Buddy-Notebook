@@ -6,6 +6,7 @@ export interface IDataService {
     getTransactions(filters?: any): Promise<Transaction[]>;
     addTransaction(transaction: Omit<Transaction, 'id'>): Promise<any>;
     updateTransaction(id: number | string, transaction: Partial<Transaction>): Promise<void>;
+    deleteTransaction(id: number | string): Promise<void>;
     updateBudget(amount: number): Promise<void>;
     getStats(): Promise<any>;
     getPersonality(): Promise<any>;
@@ -63,6 +64,10 @@ class LocalDataService implements IDataService {
 
     async updateTransaction(id: number | string, transaction: Partial<Transaction>): Promise<void> {
         await db.transactions.update(Number(id), transaction);
+    }
+
+    async deleteTransaction(id: number | string): Promise<void> {
+        await db.transactions.delete(Number(id));
     }
 
     async updateBudget(amount: number): Promise<void> {
@@ -169,6 +174,10 @@ class CloudDataService implements IDataService {
 
     async updateTransaction(id: number | string, transaction: Partial<Transaction>): Promise<void> {
         await api.put(`/transactions/${id}`, transaction);
+    }
+
+    async deleteTransaction(id: number | string): Promise<void> {
+        await api.delete(`/transactions/${id}`);
     }
 
     async updateBudget(amount: number): Promise<void> {

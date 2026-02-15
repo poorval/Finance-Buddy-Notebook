@@ -161,8 +161,12 @@ def execute_sql_update_tool(query: str, params: dict={}) -> dict:
     # finally:
     #     adapter.close()
 
-def save_transaction_tool(description: str, amount: float, category: str, split_details: str = "None") -> str:
-    if amount <= 0:
+def save_transaction_tool(description: str, amount: str, category: str, split_details: str = "None") -> str:
+    try:
+        amount_val = float(amount)
+    except (ValueError, TypeError):
+        return f"ERROR: Invalid amount '{amount}'. Must be a number."
+    if amount_val <= 0:
         return "ERROR: Amount must be positive."
     
     if not category or category == "Unknown":
@@ -183,16 +187,16 @@ def save_transaction_tool(description: str, amount: float, category: str, split_
                  val = list(res.values())[0]
                  spent = val if val else 0
             
-            if spent + float(amount) > budget:
-                budget_msg = f" WARNING: You have exceeded your {category} budget of ${budget}!"
+            if spent + amount_val > budget:
+                budget_msg = f" WARNING: You have exceeded your {category} budget of ₹{budget}!"
         
         # Insert
         insert_query = "INSERT INTO transactions (timestamp, description, amount, category, split_details, user_id) VALUES (?, ?, ?, ?, ?, ?)"
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        trans_id = adapter.insert(insert_query, (current_time, description, float(amount), category, split_details, user_id))
+        trans_id = adapter.insert(insert_query, (current_time, description, amount_val, category, split_details, user_id))
         
-        return f"SUCCESS: Transaction #{trans_id} saved. {description} - ${amount} ({category}).{budget_msg}"
+        return f"SUCCESS: Transaction #{trans_id} saved. {description} - ₹{amount_val} ({category}).{budget_msg}"
 
     except Exception as e:
         return f"ERROR: Failed to save transaction. {str(e)}"
@@ -247,7 +251,7 @@ def add_category_tool(name: str, budget: float = 100.0) -> str:
             "INSERT INTO categories (name, budget, user_id) VALUES (?, ?, ?)",
             (name.strip(), float(budget), user_id)
         )
-        return f"SUCCESS: Category '{name}' created with budget ${budget}."
+        return f"SUCCESS: Category '{name}' created with budget ₹{budget}."
     except Exception as e:
         return f"ERROR: Failed to create category. {str(e)}"
     finally:

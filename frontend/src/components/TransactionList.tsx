@@ -1,13 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import api from '@/utils/api';
 import { Search, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-
-
 import { getService } from '@/services/dataService';
 import { Transaction } from '@/lib/db';
 import { EditTransactionDialog } from './EditTransactionDialog';

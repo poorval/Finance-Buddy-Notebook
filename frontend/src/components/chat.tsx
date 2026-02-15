@@ -66,6 +66,29 @@ export function Chat({ onTransactionComplete }: ChatProps) {
             const botMessage: Message = { role: "assistant", content: data.response }
             setMessages(prev => [...prev, botMessage])
 
+            // Process actions returned by the backend
+            // In local mode, the backend won't save transactions server-side;
+            // instead it returns the data for us to save via the data service
+            const storageMode = typeof window !== 'undefined' ? localStorage.getItem('storage_mode') || 'local' : 'local';
+            if (storageMode === 'local' && data.actions && data.actions.length > 0) {
+                const service = getService();
+                for (const action of data.actions) {
+                    if (action.type === 'save_transaction_tool') {
+                        try {
+                            await service.addTransaction({
+                                description: action.data.description || '',
+                                amount: parseFloat(action.data.amount) || 0,
+                                category: action.data.category || 'Others',
+                                timestamp: new Date().toISOString(),
+                                user_id: 'local_user'
+                            });
+                        } catch (e) {
+                            console.error("Failed to save transaction locally from chat action:", e);
+                        }
+                    }
+                }
+            }
+
             if (onTransactionComplete) {
                 onTransactionComplete();
             }

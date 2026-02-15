@@ -1,5 +1,4 @@
 import React, { useEffect, useState, lazy, Suspense } from 'react';
-import api from '@/utils/api';
 import { getService } from '@/services/dataService';
 import { Dashboard } from './Dashboard';
 import { TransactionList } from './TransactionList';
