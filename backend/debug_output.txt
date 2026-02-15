@@ -1,0 +1,37 @@
+--- User IDs Present ---
+User: None
+User: 8ab31614-b4b0-487d-b58f-0c71faff0191
+User: local_user
+
+--- Analyzing for User: None ---
+Total Spent (SQL SUM): None
+Category Totals:
+Sum of Category Totals: 0
+Transactions:
+
+--- Analyzing for User: 8ab31614-b4b0-487d-b58f-0c71faff0191 ---
+Total Spent (SQL SUM): 13100.0
+Category Totals:
+  Dining: 1300.0
+  Shopping: 10000.0
+  Transport: 1800.0
+Sum of Category Totals: 13100.0
+Transactions:
+  #10: 500.0 (real) - Dining - Pizza purchase
+  #11: 300.0 (real) - Transport - Petrol purchase
+  #15: 300.0 (real) - Dining - Pizza
+  #16: 200.0 (real) - Dining - Shriram lunch
+  #18: 300.0 (real) - Dining - Coffee purchase
+  #19: 10000.0 (real) - Shopping - Amazon Gift Card
+  #20: 1500.0 (real) - Transport - Bike servicing (1.5k)
+
+--- Analyzing for User: local_user ---
+Total Spent (SQL SUM): 210.0
+Category Totals:
+  Dining: 210.0
+Sum of Category Totals: 210.0
+Transactions:
+  #12: 50.0 (real) - Dining - Lunch expense
+  #13: 50.0 (real) - Dining - Lunch expense of $50.
+  #14: 50.0 (real) - Dining - Lunch expense
+  #17: 60.0 (real) - Dining - Dinner
