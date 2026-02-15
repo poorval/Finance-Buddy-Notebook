@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -22,7 +23,31 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-app = FastAPI(title="FrugalAgent API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize databases on startup."""
+    logger.info("Starting up application and initializing database...")
+    from database import set_storage_context
+    
+    # Init Local
+    set_storage_context("local")
+    init_db()
+    
+    # Init Cloud if configured
+    if os.getenv("SUPABASE_DB_URL"):
+        try:
+            logger.info("Initializing Cloud DB connection...")
+            set_storage_context("cloud")
+            init_db()
+            logger.info("Cloud DB initialized.")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Cloud DB: {e}")
+            
+    logger.info("Database initialized.")
+    yield  # App runs here
+
+
+app = FastAPI(title="FrugalAgent API", lifespan=lifespan)
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request
@@ -45,28 +70,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize DB on startup
-@app.on_event("startup")
-def startup_event():
-    logger.info("Starting up application and initializing database...")
-    from database import set_storage_context
-    
-    # Init Local
-    set_storage_context("local")
-    init_db()
-    
-    # Init Cloud if configured
-    if os.getenv("SUPABASE_DB_URL"):
-        try:
-            logger.info("Initializing Cloud DB connection...")
-            set_storage_context("cloud")
-            init_db()
-            logger.info("Cloud DB initialized.")
-        except Exception as e:
-            logger.warning(f"Failed to initialize Cloud DB: {e}")
-            
-    logger.info("Database initialized.")
 
 # Auth Dependency
 security = HTTPBearer(auto_error=False)
