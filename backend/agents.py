@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 import pathlib
 from google.adk.agents import Agent, SequentialAgent
-from google.adk.models.google_llm import Gemini
+from google.adk.models.lite_llm import LiteLlm # Updated import
 from google.adk.tools import google_search, AgentTool
 from google.adk.runners import InMemoryRunner
 from google.genai import types
@@ -40,11 +40,13 @@ retry_config = types.HttpRetryOptions(
 
 orchestrator_agent = Agent(
     name="FinanceAssistant",
-    model=Gemini(
-        model="gemini-3-flash-preview", # Keeping user's preferred model
-        api_key=api_key,
-        generation_config={"temperature": 0.3},
-        retry_options=retry_config
+    model=LiteLlm(
+        model="groq/llama-3.3-70b-versatile", 
+        # api_key is handled by os.getenv("GROQ_API_KEY") automatically by LiteLLM usually, 
+        # or we might need to pass it if ADK's LiteLlm wrapper requires it explicitly.
+        # Based on typical LiteLLM usage, env var is enough. 
+        # Let's see if ADK wrapper needs anything specific.
+        # The prompt mentioned: model="groq/...", acts as bridge.
     ),
     # ALL tools available to the main agent
     tools=[
@@ -53,8 +55,7 @@ orchestrator_agent = Agent(
         read_sql_query_tool, 
         record_group_debts, 
         execute_sql_update_tool, 
-        add_category_tool,
-        google_search
+        add_category_tool
     ],
     description="An intelligent finance assistant that handles transactions, debts, analysis, and database updates.",
     instruction="""
