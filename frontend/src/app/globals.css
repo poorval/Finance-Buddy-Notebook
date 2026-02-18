@@ -40,35 +40,54 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+
+    /* Mobile safe areas */
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
+
+    /* Bottom nav height */
+    --bottom-nav-height: 4rem;
+
+    /* Category colors */
+    --cat-dining: 12 80% 55%;
+    --cat-transport: 210 70% 50%;
+    --cat-groceries: 142 60% 45%;
+    --cat-entertainment: 280 65% 55%;
+    --cat-shopping: 330 70% 55%;
+    --cat-bills: 45 80% 50%;
+    --cat-health: 170 60% 45%;
+    --cat-other: 215 15% 55%;
   }
 
   .dark {
-    --background: 0 0% 0%;
-    --foreground: 210 40% 98%;
+    --background: 240 10% 4%;
+    --foreground: 0 0% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 240 10% 6.5%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 240 10% 6.5%;
+    --popover-foreground: 0 0% 95%;
 
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 240 4% 16%;
+    --secondary-foreground: 0 0% 95%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 240 4% 16%;
+    --accent-foreground: 0 0% 95%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
     --ring: 212.7 26.8% 83.9%;
 
     /* Chart Colors */
@@ -87,5 +106,255 @@
 
   body {
     @apply bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    letter-spacing: -0.011em;
+  }
+
+  /* Prevent text size adjustment on orientation change */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
+/* ─── Micro-animation keyframes ─── */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes dot-pulse {
+
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes gentle-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@layer utilities {
+
+  /* Hide scrollbar utility */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Smooth scrolling for mobile */
+  .scroll-smooth-touch {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Mobile safe area padding */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Bottom nav spacer */
+  .pb-nav {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Touch-friendly minimum tap target */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Horizontal scroll snap for mobile cards */
+  .snap-x-mandatory {
+    scroll-snap-type: x mandatory;
+  }
+
+  .snap-start {
+    scroll-snap-align: start;
+  }
+
+  /* ─── Press scale — tactile tap feedback ─── */
+  .press-scale {
+    transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1);
+    will-change: transform;
+  }
+
+  .press-scale:active {
+    transform: scale(0.97);
+  }
+
+  /* Lighter variant for smaller elements */
+  .press-scale-sm {
+    transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1);
+    will-change: transform;
+  }
+
+  .press-scale-sm:active {
+    transform: scale(0.95);
+  }
+
+  /* ─── Fade-up entrance ─── */
+  .animate-fade-up {
+    animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease both;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* ─── Staggered list items ─── */
+  .stagger-item {
+    animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .stagger-item:nth-child(1) {
+    animation-delay: 0ms;
+  }
+
+  .stagger-item:nth-child(2) {
+    animation-delay: 50ms;
+  }
+
+  .stagger-item:nth-child(3) {
+    animation-delay: 100ms;
+  }
+
+  .stagger-item:nth-child(4) {
+    animation-delay: 150ms;
+  }
+
+  .stagger-item:nth-child(5) {
+    animation-delay: 200ms;
+  }
+
+  .stagger-item:nth-child(6) {
+    animation-delay: 250ms;
+  }
+
+  .stagger-item:nth-child(7) {
+    animation-delay: 300ms;
+  }
+
+  .stagger-item:nth-child(8) {
+    animation-delay: 350ms;
+  }
+
+  /* ─── Gradient text ─── */
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(var(--foreground)), hsl(var(--muted-foreground)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ─── Typing dots ─── */
+  .typing-dot {
+    animation: dot-pulse 1.4s ease-in-out infinite;
+  }
+
+  .typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  /* ─── Skeleton shimmer ─── */
+  .shimmer {
+    background: linear-gradient(90deg,
+        hsl(var(--muted)) 0%,
+        hsl(var(--muted-foreground) / 0.08) 50%,
+        hsl(var(--muted)) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.8s ease-in-out infinite;
+  }
+
+  /* ─── Gentle pulse for interactive hints ─── */
+  .animate-gentle-pulse {
+    animation: gentle-pulse 2s ease-in-out infinite;
+  }
+
+  /* ─── Card glow in dark mode ─── */
+  .dark .card-glow {
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  }
+}
+
+/* Prevent pull-to-refresh on mobile for the app shell */
+@media (max-width: 767px) {
+  body {
+    overscroll-behavior-y: contain;
   }
 }

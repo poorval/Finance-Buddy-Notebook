@@ -19,14 +19,13 @@ interface CategoryTotal {
     fill?: string;
 }
 
-// Define a palette of colors for dynamic categories
 const CHART_COLORS = [
     "hsl(var(--chart-1))",
     "hsl(var(--chart-2))",
     "hsl(var(--chart-3))",
     "hsl(var(--chart-4))",
     "hsl(var(--chart-5))",
-    "hsl(var(--chart-1))", // Repeat if necessary or add more
+    "hsl(var(--chart-1))",
 ];
 
 export function Dashboard({ refreshTrigger }: { refreshTrigger: number }) {
@@ -37,7 +36,6 @@ export function Dashboard({ refreshTrigger }: { refreshTrigger: number }) {
             try {
                 const service = getService();
                 const categoryTotals = await service.getCategoryTotals();
-                // Assign colors to data
                 const processedData = categoryTotals.map((item: any, index: number) => ({
                     ...item,
                     fill: CHART_COLORS[index % CHART_COLORS.length]
@@ -54,7 +52,6 @@ export function Dashboard({ refreshTrigger }: { refreshTrigger: number }) {
         return data.reduce((acc, curr) => acc + curr.total, 0);
     }, [data]);
 
-    // Dynamically generate chart config based on data
     const chartConfig = useMemo(() => {
         const config: ChartConfig = {
             total: {
@@ -72,19 +69,19 @@ export function Dashboard({ refreshTrigger }: { refreshTrigger: number }) {
 
     return (
         <Card className="flex flex-col h-full shadow-md border-0 bg-card/50">
-            <CardHeader className="items-center pb-0">
-                <CardTitle>Spending by Category</CardTitle>
+            <CardHeader className="items-center pb-0 px-3 md:px-6">
+                <CardTitle className="text-base md:text-lg">Spending by Category</CardTitle>
                 <CardDescription>Current Month</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 pb-0">
+            <CardContent className="flex-1 pb-0 px-2 md:px-6">
                 {data.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-muted-foreground">
+                    <div className="h-full flex items-center justify-center text-muted-foreground min-h-[200px]">
                         No data available
                     </div>
                 ) : (
                     <ChartContainer
                         config={chartConfig}
-                        className="mx-auto aspect-square max-h-[300px]"
+                        className="mx-auto aspect-square max-h-[220px] md:max-h-[300px]"
                     >
                         <PieChart>
                             <ChartTooltip
@@ -95,8 +92,8 @@ export function Dashboard({ refreshTrigger }: { refreshTrigger: number }) {
                                 data={data}
                                 dataKey="total"
                                 nameKey="category"
-                                innerRadius={60}
-                                strokeWidth={5}
+                                innerRadius={45}
+                                strokeWidth={4}
                             >
                                 <Label
                                     content={({ viewBox }) => {
@@ -111,14 +108,14 @@ export function Dashboard({ refreshTrigger }: { refreshTrigger: number }) {
                                                     <tspan
                                                         x={viewBox.cx}
                                                         y={viewBox.cy}
-                                                        className="fill-foreground text-3xl font-bold"
+                                                        className="fill-foreground text-xl md:text-3xl font-bold"
                                                     >
                                                         {totalSpent.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
                                                     </tspan>
                                                     <tspan
                                                         x={viewBox.cx}
-                                                        y={(viewBox.cy || 0) + 24}
-                                                        className="fill-muted-foreground"
+                                                        y={(viewBox.cy || 0) + 20}
+                                                        className="fill-muted-foreground text-xs"
                                                     >
                                                         Total
                                                     </tspan>
@@ -128,13 +125,13 @@ export function Dashboard({ refreshTrigger }: { refreshTrigger: number }) {
                                     }}
                                 />
                             </Pie>
-                            <ChartLegend content={<ChartLegendContent nameKey="category" />} className="-translate-y-2 flex-wrap gap-2 [&>*]:basis-1/4 [&>*]:justify-center" />
+                            <ChartLegend content={<ChartLegendContent nameKey="category" />} className="-translate-y-2 flex-wrap gap-1 md:gap-2 [&>*]:basis-1/3 md:[&>*]:basis-1/4 [&>*]:justify-center text-xs" />
                         </PieChart>
                     </ChartContainer>
                 )}
             </CardContent>
-            <CardFooter className="flex-col gap-2 text-sm">
-                <div className="leading-none text-muted-foreground">
+            <CardFooter className="flex-col gap-2 text-sm px-3 md:px-6">
+                <div className="leading-none text-muted-foreground text-xs md:text-sm">
                     Showing total spending for the current period
                 </div>
             </CardFooter>
