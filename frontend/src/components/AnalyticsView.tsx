@@ -29,7 +29,6 @@ interface PersonalityProfile {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];
 
 export default function AnalyticsView() {
-    // State
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [personality, setPersonality] = useState<PersonalityProfile | null>(null);
     const [loading, setLoading] = useState(true);
@@ -39,19 +38,16 @@ export default function AnalyticsView() {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
 
-    // Filters
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: startOfMonth(new Date()),
         to: endOfMonth(new Date()),
     });
     const [categoryFilter, setCategoryFilter] = useState("all");
 
-    // Fetch Initial Data (Personality & Categories)
     useEffect(() => {
         const fetchMeta = async () => {
             try {
                 const service = getService();
-                // Fetch Personality (All Time)
                 const pRes = await service.getPersonality();
                 setPersonality(pRes);
             } catch (err) {
@@ -61,7 +57,6 @@ export default function AnalyticsView() {
         fetchMeta();
     }, []);
 
-    // Fetch Filtered Transactions (from DB/API based on Date/Category)
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
@@ -76,7 +71,6 @@ export default function AnalyticsView() {
                 const data = await service.getTransactions(filters);
                 setTransactions(data);
 
-                // Update categories list from the fetched data
                 const cats = Array.from(new Set(data.map((t: Transaction) => t.category))) as string[];
                 setCategories(prev => Array.from(new Set([...prev, ...cats])).sort());
 
@@ -103,16 +97,13 @@ export default function AnalyticsView() {
         }
     };
 
-    // Computed Filtered Data (Client-side Search)
     const filteredTransactions = useMemo(() => {
         return filterTransactions(transactions, searchQuery);
     }, [transactions, searchQuery]);
 
-    // Computed Data for Charts
     const chartData = useMemo(() => {
         if (!filteredTransactions.length) return { lineData: [], pieData: [] };
 
-        // 1. Line Chart: Daily Spending
         const dailyMap = new Map<string, number>();
         filteredTransactions.forEach(t => {
             const dateStr = t.timestamp.split(' ')[0];
@@ -123,7 +114,6 @@ export default function AnalyticsView() {
             .map(([date, amount]) => ({ date, amount }))
             .sort((a, b) => a.date.localeCompare(b.date));
 
-        // 2. Pie Chart: Category Distribution
         const catMap = new Map<string, number>();
         filteredTransactions.forEach(t => {
             catMap.set(t.category, (catMap.get(t.category) || 0) + t.amount);
@@ -145,24 +135,24 @@ export default function AnalyticsView() {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
             {/* Header / Filters */}
-            <div className="flex flex-col gap-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col gap-3 md:gap-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
                     <div>
-                        <h2 className="text-2xl font-bold tracking-tight">Analytics & Insights</h2>
-                        <p className="text-muted-foreground">Analyze your spending habits and trends.</p>
+                        <h2 className="text-xl md:text-2xl font-bold tracking-tight">Analytics & Insights</h2>
+                        <p className="text-sm text-muted-foreground">Analyze your spending habits and trends.</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={handleSeedData}>
-                            Seed 5k Data (Local)
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                        <Button variant="outline" size="sm" onClick={handleSeedData} className="flex-shrink-0 text-xs">
+                            Seed 5k Data
                         </Button>
                         <ModernDatePicker
                             date={dateRange ? { from: dateRange.from, to: dateRange.to } : undefined}
                             setDate={setDateRange}
                         />
                         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                            <SelectTrigger className="w-[150px]">
+                            <SelectTrigger className="w-[120px] md:w-[150px] flex-shrink-0 text-xs md:text-sm">
                                 <SelectValue placeholder="Category" />
                             </SelectTrigger>
                             <SelectContent>
@@ -173,16 +163,17 @@ export default function AnalyticsView() {
                     </div>
                 </div>
 
-                {/* Splunk-like Search Bar */}
+                {/* Search Bar */}
                 <div className="relative group">
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search transactions... (e.g. category=Dining amount>50 description=Lunch)"
-                        className="pl-10 font-mono text-sm h-11 bg-muted/30 border-muted-foreground/20 focus-visible:ring-primary/20 focus-visible:border-primary transition-all"
+                        placeholder="Search transactions..."
+                        className="pl-10 font-mono text-sm h-10 md:h-11 bg-muted/30 border-muted-foreground/20 focus-visible:ring-primary/20 focus-visible:border-primary transition-all"
+                        style={{ fontSize: '16px' }}
                     />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden md:flex gap-1">
                         <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                             <span className="text-xs">SPL</span>
                         </kbd>
@@ -193,13 +184,13 @@ export default function AnalyticsView() {
             {/* Personality Card */}
             {personality && (
                 <Card className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border-indigo-200 dark:border-indigo-800">
-                    <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                        <div className="text-4xl bg-background p-2 rounded-full shadow-sm">{personality.emoji}</div>
+                    <CardHeader className="flex flex-row items-center gap-3 md:gap-4 pb-2 p-3 md:p-6">
+                        <div className="text-3xl md:text-4xl bg-background p-1.5 md:p-2 rounded-full shadow-sm">{personality.emoji}</div>
                         <div>
-                            <CardTitle className="text-lg text-indigo-700 dark:text-indigo-300">
+                            <CardTitle className="text-base md:text-lg text-indigo-700 dark:text-indigo-300">
                                 {personality.title}
                             </CardTitle>
-                            <CardDescription className="text-base text-foreground/80">
+                            <CardDescription className="text-sm text-foreground/80">
                                 {personality.description}
                             </CardDescription>
                         </div>
@@ -207,60 +198,55 @@ export default function AnalyticsView() {
                 </Card>
             )}
 
-            {/* Key Metrics Row */}
-            <div className="grid gap-4 md:grid-cols-3">
+            {/* Key Metrics Row — horizontal scroll on mobile */}
+            <div className="grid grid-cols-3 gap-2 md:gap-4 md:grid-cols-3">
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Spent (Selected)</CardTitle>
-                        <Wallet className="h-4 w-4 text-muted-foreground" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2 p-2.5 md:p-6">
+                        <CardTitle className="text-[11px] md:text-sm font-medium">Total Spent</CardTitle>
+                        <Wallet className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground hidden xs:block" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(totalSpentInRange)}</div>
-                        <p className="text-xs text-muted-foreground">
-                            In selected range
-                        </p>
+                    <CardContent className="p-2.5 pt-0 md:p-6 md:pt-0">
+                        <div className="text-base md:text-2xl font-bold">{formatCurrency(totalSpentInRange)}</div>
+                        <p className="text-[10px] md:text-xs text-muted-foreground">In selected range</p>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Avg. Transaction</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2 p-2.5 md:p-6">
+                        <CardTitle className="text-[11px] md:text-sm font-medium">Avg. Txn</CardTitle>
+                        <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground hidden xs:block" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
+                    <CardContent className="p-2.5 pt-0 md:p-6 md:pt-0">
+                        <div className="text-base md:text-2xl font-bold">
                             {formatCurrency(filteredTransactions.length ? totalSpentInRange / filteredTransactions.length : 0)}
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                            {filteredTransactions.length} transactions
-                        </p>
+                        <p className="text-[10px] md:text-xs text-muted-foreground">{filteredTransactions.length} txns</p>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Top Category</CardTitle>
-                        <Filter className="h-4 w-4 text-muted-foreground" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 md:pb-2 p-2.5 md:p-6">
+                        <CardTitle className="text-[11px] md:text-sm font-medium">Top Cat.</CardTitle>
+                        <Filter className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground hidden xs:block" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
+                    <CardContent className="p-2.5 pt-0 md:p-6 md:pt-0">
+                        <div className="text-base md:text-2xl font-bold truncate">
                             {chartData.pieData.length > 0 ? chartData.pieData[0].name : "N/A"}
                         </div>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[10px] md:text-xs text-muted-foreground">
                             {chartData.pieData.length > 0 ? formatCurrency(chartData.pieData[0].value) : "₹0.00"}
                         </p>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Charts Row */}
+            {/* Charts — stacked on mobile */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                {/* Line/Area Chart */}
-                <Card className="col-span-4">
-                    <CardHeader>
-                        <CardTitle>Spending Trend</CardTitle>
-                        <CardDescription>Daily spending over time.</CardDescription>
+                <Card className="md:col-span-4 lg:col-span-4">
+                    <CardHeader className="p-3 md:p-6">
+                        <CardTitle className="text-base md:text-lg">Spending Trend</CardTitle>
+                        <CardDescription className="text-xs md:text-sm">Daily spending over time.</CardDescription>
                     </CardHeader>
-                    <CardContent className="pl-2">
-                        <div className="h-[300px] w-full">
+                    <CardContent className="p-2 md:pl-2 md:p-6">
+                        <div className="h-[200px] md:h-[300px] w-full">
                             {loading ? (
                                 <div className="h-full w-full flex items-center justify-center">
                                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -283,12 +269,15 @@ export default function AnalyticsView() {
                                                 const date = parseISO(str);
                                                 return format(date, "MMM d");
                                             }}
-                                            minTickGap={30}
+                                            minTickGap={40}
+                                            tick={{ fontSize: 11 }}
                                         />
                                         <YAxis
                                             tickLine={false}
                                             axisLine={false}
                                             tickFormatter={(val) => `₹${val}`}
+                                            tick={{ fontSize: 11 }}
+                                            width={50}
                                         />
                                         <Tooltip
                                             formatter={(value: number) => [formatCurrency(value), "Spent"]}
@@ -306,14 +295,13 @@ export default function AnalyticsView() {
                     </CardContent>
                 </Card>
 
-                {/* Pie Chart */}
-                <Card className="col-span-3">
-                    <CardHeader>
-                        <CardTitle>Category Distribution</CardTitle>
-                        <CardDescription>Where your money went.</CardDescription>
+                <Card className="md:col-span-3 lg:col-span-3">
+                    <CardHeader className="p-3 md:p-6">
+                        <CardTitle className="text-base md:text-lg">Category Distribution</CardTitle>
+                        <CardDescription className="text-xs md:text-sm">Where your money went.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="h-[300px] w-full">
+                    <CardContent className="p-2 md:p-6">
+                        <div className="h-[220px] md:h-[300px] w-full">
                             {loading ? (
                                 <div className="h-full w-full flex items-center justify-center">
                                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -326,7 +314,7 @@ export default function AnalyticsView() {
                                             cx="50%"
                                             cy="50%"
                                             labelLine={false}
-                                            outerRadius={80}
+                                            outerRadius={70}
                                             fill="#8884d8"
                                             dataKey="value"
                                         >
@@ -335,7 +323,7 @@ export default function AnalyticsView() {
                                             ))}
                                         </Pie>
                                         <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                                        <Legend />
+                                        <Legend wrapperStyle={{ fontSize: '12px' }} />
                                     </PieChart>
                                 </ResponsiveContainer>
                             ) : (
@@ -350,26 +338,36 @@ export default function AnalyticsView() {
 
             {/* Filtered Transactions List */}
             <Card>
-                <CardHeader>
-                    <CardTitle>Transactions</CardTitle>
-                    <CardDescription>Review filtered transactions.</CardDescription>
+                <CardHeader className="p-3 md:p-6">
+                    <CardTitle className="text-base md:text-lg">Transactions</CardTitle>
+                    <CardDescription className="text-xs md:text-sm">Review filtered transactions.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <ScrollArea className="h-[300px]">
-                        <div className="space-y-4">
+                <CardContent className="p-3 md:p-6 pt-0 md:pt-0">
+                    <ScrollArea className="h-[250px] md:h-[300px]">
+                        <div className="space-y-1">
                             {filteredTransactions.map((t) => (
-                                <div key={t.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0 group">
-                                    <div>
-                                        <p className="text-sm font-medium">{t.description}</p>
-                                        <p className="text-xs text-muted-foreground">{t.category} • {t.timestamp}</p>
+                                <div
+                                    key={t.id}
+                                    className="flex items-center justify-between py-2.5 px-1 rounded-lg group active:bg-muted/50 transition-colors touch-target"
+                                    onClick={() => {
+                                        if (window.innerWidth < 768) {
+                                            setSelectedTransaction(t);
+                                            setIsEditDialogOpen(true);
+                                        }
+                                    }}
+                                >
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium truncate">{t.description}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{t.category} • {t.timestamp}</p>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="font-semibold">{formatCurrency(t.amount)}</div>
+                                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                        <div className="font-semibold text-sm">{formatCurrency(t.amount)}</div>
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            onClick={() => {
+                                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hidden md:flex"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
                                                 setSelectedTransaction(t);
                                                 setIsEditDialogOpen(true);
                                             }}
@@ -380,7 +378,7 @@ export default function AnalyticsView() {
                                 </div>
                             ))}
                             {!loading && filteredTransactions.length === 0 && (
-                                <p className="text-center text-muted-foreground py-8">No transactions found.</p>
+                                <p className="text-center text-muted-foreground py-8 text-sm">No transactions found.</p>
                             )}
                         </div>
                     </ScrollArea>

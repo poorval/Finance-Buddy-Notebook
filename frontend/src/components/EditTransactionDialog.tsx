@@ -1,197 +1,204 @@
+"use client"
+
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { getService } from '@/services/dataService';
+import { Transaction } from '@/lib/db';
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Transaction } from '@/lib/db';
-import { getService } from '@/services/dataService';
+import {
+    ResponsiveDialog,
+    ResponsiveDialogContent,
+    ResponsiveDialogHeader,
+    ResponsiveDialogTitle,
+    ResponsiveDialogDescription,
+    ResponsiveDialogFooter,
+} from "@/components/ui/ResponsiveDialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Save, Trash2 } from 'lucide-react';
 
 interface EditTransactionDialogProps {
-    transaction: Transaction | null;
     isOpen: boolean;
     onClose: () => void;
+    transaction: Transaction | null;
     onSave: () => void;
 }
 
-export function EditTransactionDialog({ transaction, isOpen, onClose, onSave }: EditTransactionDialogProps) {
-    const [description, setDescription] = useState("");
-    const [amount, setAmount] = useState("");
-    const [category, setCategory] = useState("");
-    const [date, setDate] = useState("");
-    const [time, setTime] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [confirmDelete, setConfirmDelete] = useState(false);
+export function EditTransactionDialog({ isOpen, onClose, transaction, onSave }: EditTransactionDialogProps) {
+    const [description, setDescription] = useState('');
+    const [amount, setAmount] = useState('');
+    const [category, setCategory] = useState('');
+    const [date, setDate] = useState('');
+    const [time, setTime] = useState('');
     const [categories, setCategories] = useState<string[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         if (transaction) {
             setDescription(transaction.description);
             setAmount(transaction.amount.toString());
             setCategory(transaction.category);
-
-            // Parse timestamp "YYYY-MM-DD HH:MM:SS" or ISO
             try {
-                const d = new Date(transaction.timestamp);
-                setDate(d.toISOString().split('T')[0]);
-                setTime(d.toTimeString().split(' ')[0].substring(0, 5));
-            } catch (e) {
-                // Fallback if parsing fails
-                setDate("");
-                setTime("");
+                const dateObj = new Date(transaction.timestamp);
+                setDate(dateObj.toISOString().split('T')[0]);
+                setTime(dateObj.toTimeString().slice(0, 5));
+            } catch {
+                setDate('');
+                setTime('');
             }
         }
-        fetchCategories();
     }, [transaction]);
 
-    const fetchCategories = async () => {
-        try {
-            const service = getService();
-            const cats = await service.getCategories();
-            if (cats) setCategories(cats);
-        } catch (e) {
-            console.error(e);
+    useEffect(() => {
+        if (isOpen) {
+            const fetchCategories = async () => {
+                try {
+                    const service = getService();
+                    const cats = await service.getCategories();
+                    setCategories(cats);
+                } catch (e) {
+                    console.error("Error fetching categories", e);
+                }
+            };
+            fetchCategories();
         }
-    }
+    }, [isOpen]);
 
     const handleSave = async () => {
         if (!transaction) return;
-        setLoading(true);
+        setIsLoading(true);
         try {
             const service = getService();
-            const timestamp = `${date} ${time}:00`;
-
-            if (transaction.id === undefined) return;
-            await service.updateTransaction(transaction.id, {
-                description,
+            const timestamp = date && time ? `${date}T${time}:00` : transaction.timestamp;
+            await service.updateTransaction(transaction.id!, {
+                description: description.trim(),
                 amount: parseFloat(amount),
                 category,
-                timestamp
+                timestamp,
             });
             onSave();
             onClose();
         } catch (error) {
-            console.error("Failed to update transaction", error);
+            console.error("Failed to update transaction:", error);
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
     const handleDelete = async () => {
-        if (!transaction || transaction.id === undefined) return;
-        setLoading(true);
+        if (!transaction) return;
+        setIsLoading(true);
         try {
             const service = getService();
-            await service.deleteTransaction(transaction.id);
+            await service.deleteTransaction(transaction.id!);
             onSave();
             onClose();
         } catch (error) {
-            console.error("Failed to delete transaction", error);
+            console.error("Failed to delete transaction:", error);
         } finally {
-            setLoading(false);
-            setConfirmDelete(false);
+            setIsLoading(false);
         }
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Edit Transaction</DialogTitle>
-                    <DialogDescription>
-                        Make changes to your transaction here. Click save when you're done.
-                    </DialogDescription>
-                </DialogHeader>
+        <ResponsiveDialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+            <ResponsiveDialogContent className="sm:max-w-[425px]">
+                <ResponsiveDialogHeader>
+                    <ResponsiveDialogTitle>Edit Transaction</ResponsiveDialogTitle>
+                    <ResponsiveDialogDescription>
+                        Update the details of this transaction.
+                    </ResponsiveDialogDescription>
+                </ResponsiveDialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="desc" className="text-right">
-                            Description
-                        </Label>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-desc">Description</Label>
                         <Input
-                            id="desc"
+                            id="edit-desc"
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            className="col-span-3"
+                            className="h-11"
+                            style={{ fontSize: '16px' }}
                         />
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="amount" className="text-right">
-                            Amount
-                        </Label>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-amount">Amount (₹)</Label>
                         <Input
-                            id="amount"
+                            id="edit-amount"
                             type="number"
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
-                            className="col-span-3"
+                            className="h-11"
+                            style={{ fontSize: '16px' }}
                         />
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="category" className="text-right">
-                            Category
-                        </Label>
+                    <div className="space-y-2">
+                        <Label>Category</Label>
                         <Select value={category} onValueChange={setCategory}>
-                            <SelectTrigger className="col-span-3">
+                            <SelectTrigger className="h-11">
                                 <SelectValue placeholder="Select category" />
                             </SelectTrigger>
                             <SelectContent>
-                                {categories.map((c) => (
-                                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                                {categories.map(cat => (
+                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label className="text-right">Time</Label>
-                        <div className="col-span-3 flex gap-2">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-date">Date</Label>
                             <Input
+                                id="edit-date"
                                 type="date"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="flex-1"
+                                className="h-11"
+                                style={{ fontSize: '16px' }}
                             />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-time">Time</Label>
                             <Input
+                                id="edit-time"
                                 type="time"
                                 value={time}
                                 onChange={(e) => setTime(e.target.value)}
-                                className="w-24"
+                                className="h-11"
+                                style={{ fontSize: '16px' }}
                             />
                         </div>
                     </div>
                 </div>
-                <DialogFooter className="flex !justify-between sm:!justify-between">
-                    <div>
-                        {!confirmDelete ? (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => setConfirmDelete(true)}
-                                disabled={loading}
-                            >
-                                <Trash2 className="h-4 w-4 mr-1" />
+                <ResponsiveDialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" className="w-full sm:w-auto h-11 touch-target">
+                                <Trash2 className="h-4 w-4 mr-2" />
                                 Delete
                             </Button>
-                        ) : (
-                            <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={handleDelete}
-                                disabled={loading}
-                            >
-                                {loading ? "Deleting..." : "Confirm Delete"}
-                            </Button>
-                        )}
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => { onClose(); setConfirmDelete(false); }}>Cancel</Button>
-                        <Button onClick={handleSave} disabled={loading}>
-                            {loading ? "Saving..." : "Save changes"}
-                        </Button>
-                    </div>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Transaction?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete this transaction.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+                                    Delete
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    <Button onClick={handleSave} disabled={isLoading} className="w-full sm:w-auto h-11 touch-target">
+                        <Save className="h-4 w-4 mr-2" />
+                        {isLoading ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                </ResponsiveDialogFooter>
+            </ResponsiveDialogContent>
+        </ResponsiveDialog>
     );
 }
