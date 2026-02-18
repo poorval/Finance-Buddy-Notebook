@@ -3,6 +3,7 @@ import os
 
 DB_PATH = "expense.db"
 
+
 def run_debug():
     if not os.path.exists(DB_PATH):
         print(f"Database not found at {DB_PATH}")
