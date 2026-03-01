@@ -3,5 +3,11 @@
         "deploymentEnabled": {
             "main": true
         }
-    }
+    },
+    "rewrites": [
+        {
+            "source": "/api/:path*",
+            "destination": "https://finance-buddy-notebook-is9f.onrender.com/:path*"
+        }
+    ]
 }

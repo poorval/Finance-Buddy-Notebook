@@ -18,11 +18,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
-          vercel-args: '--prod'
-          working-directory: backend
+      - name: Trigger Render Deploy
+        # RENDER_DEPLOY_HOOK_URL is set in GitHub repo secrets.
+        # Get it from: Render Dashboard → your service → Settings → Deploy Hooks
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"

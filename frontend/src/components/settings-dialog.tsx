@@ -14,6 +14,7 @@ import {
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { getService } from "@/services/dataService"
 import api from "@/utils/api"
+import { BackupManager } from "@/components/BackupManager"
 
 export function SettingsDialog() {
     const [open, setOpen] = useState(false)
@@ -82,8 +83,8 @@ export function SettingsDialog() {
                                     <button
                                         onClick={() => handleModeSelect("local")}
                                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all touch-target ${storageMode === "local"
-                                                ? "border-primary bg-primary/5 shadow-sm"
-                                                : "border-muted hover:border-primary/40"
+                                            ? "border-primary bg-primary/5 shadow-sm"
+                                            : "border-muted hover:border-primary/40"
                                             }`}
                                     >
                                         <HardDrive className={`h-6 w-6 ${storageMode === "local" ? "text-primary" : "text-muted-foreground"}`} />
@@ -110,8 +111,8 @@ export function SettingsDialog() {
                                     <button
                                         onClick={() => handleModeSelect("cloud")}
                                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all touch-target ${storageMode === "cloud"
-                                                ? "border-primary bg-primary/5 shadow-sm"
-                                                : "border-muted hover:border-primary/40"
+                                            ? "border-primary bg-primary/5 shadow-sm"
+                                            : "border-muted hover:border-primary/40"
                                             }`}
                                     >
                                         <Cloud className={`h-6 w-6 ${storageMode === "cloud" ? "text-primary" : "text-muted-foreground"}`} />
@@ -147,6 +148,13 @@ export function SettingsDialog() {
                             {syncing ? 'Syncing...' : 'Sync to Cloud'}
                         </Button>
                     </div>
+
+                    {/* Google Drive Backup — local mode only */}
+                    {storageMode === "local" && (
+                        <div className="pt-2 border-t mt-4">
+                            <BackupManager onRestoreComplete={() => setOpen(false)} />
+                        </div>
+                    )}
                 </div>
             </ResponsiveDialogContent>
         </ResponsiveDialog>
