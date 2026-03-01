@@ -1,6 +1,7 @@
 import api from '@/utils/api';
 import { db, Transaction, Category } from '@/lib/db';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
+import { triggerAutoBackup } from '@/components/BackupManager';
 
 export interface IDataService {
     getTransactions(filters?: any): Promise<Transaction[]>;
@@ -59,20 +60,25 @@ class LocalDataService implements IDataService {
     }
 
     async addTransaction(transaction: Omit<Transaction, 'id'>): Promise<any> {
-        return await db.transactions.add(transaction);
+        const id = await db.transactions.add(transaction);
+        triggerAutoBackup();
+        return id;
     }
 
     async updateTransaction(id: number | string, transaction: Partial<Transaction>): Promise<void> {
         await db.transactions.update(Number(id), transaction);
+        triggerAutoBackup();
     }
 
     async deleteTransaction(id: number | string): Promise<void> {
         await db.transactions.delete(Number(id));
+        triggerAutoBackup();
     }
 
     async updateBudget(amount: number): Promise<void> {
         // 'local_user' is the default key for local mode
         await db.user_settings.put({ user_id: 'local_user', monthly_budget: amount });
+        triggerAutoBackup();
     }
 
     async getStats(): Promise<any> {

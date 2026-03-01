@@ -119,7 +119,13 @@ class PostgresAdapter(DBAdapter):
         self.conn = None
 
     def connect(self):
-        self.conn = psycopg2.connect(self.db_url)
+        self.conn = psycopg2.connect(
+            self.db_url,
+            # Transaction pooler (Supabase port 6543) does not support prepared
+            # statements. Disabling them ensures compatibility with Render free
+            # tier, which requires the pooler because it lacks IPv6 outbound.
+            options="-c prepared_statements=off"
+        )
 
     def close(self):
         if self.conn:
@@ -128,7 +134,7 @@ class PostgresAdapter(DBAdapter):
     def _sanitize_query(self, query: str) -> str:
         # Convert ? placeholders to %s
         return query.replace("?", "%s")
-
+ 
     def fetch_one(self, query: str, params: tuple = ()) -> Optional[Dict]:
         c = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         query = self._sanitize_query(query)

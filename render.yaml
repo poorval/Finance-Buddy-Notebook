@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: finance-buddy-backend
+    runtime: python
+    region: oregon  # Change to: singapore, frankfurt, ohio as needed
+    plan: free
+
+    # Root directory of the service within the repo
+    rootDir: backend
+
+    buildCommand: pip install -r requirements.txt
+
+    # uvicorn is used directly; no separate Procfile needed
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+
+    # Health check path
+    healthCheckPath: /
+
+    envVars:
+      # Required: Google Gemini API key for the AI agent
+      - key: GOOGLE_API_KEY
+        sync: false   # Set manually in Render dashboard
+
+      # Required for cloud/Supabase storage mode
+      - key: SUPABASE_DB_URL
+        sync: false   # Set manually in Render dashboard
+
+      # Required for JWT verification (Supabase JWT secret)
+      - key: SUPABASE_JWT_SECRET
+        sync: false   # Set manually in Render dashboard
+
+      # Optional: port is automatically set by Render
+      - key: PORT
+        generateValue: false
