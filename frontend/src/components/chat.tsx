@@ -215,13 +215,13 @@ export function Chat({ onTransactionComplete }: ChatProps) {
                                     ) : (
                                         <div
                                             className={cn(
-                                                "rounded-2xl px-3.5 py-2.5 md:px-4 md:py-3 text-sm",
+                                                "rounded-2xl px-3.5 py-2.5 md:px-4 md:py-3 text-sm min-w-0",
                                                 msg.role === "user"
                                                     ? "bg-primary text-primary-foreground rounded-tr-md shadow-sm"
                                                     : "bg-muted/40 border border-border/50 rounded-tl-md"
                                             )}
                                         >
-                                            <div className="prose dark:prose-invert max-w-none text-sm break-words leading-relaxed">
+                                            <div className="prose dark:prose-invert max-w-none text-sm break-words overflow-hidden leading-relaxed">
                                                 <ReactMarkdown
                                                     remarkPlugins={[remarkGfm]}
                                                     components={{
