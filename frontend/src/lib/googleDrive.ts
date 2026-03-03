@@ -1,5 +1,5 @@
 import { db } from './db';
-import 'dexie-export-import';
+import type * as DexieExportImport from 'dexie-export-import'; // Only import types for TypeScript to know about .export()
 
 export const NEXT_PUBLIC_GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "YOUR_CLIENT_ID";
 let _accessToken: string | null = null;
@@ -48,6 +48,7 @@ export const getAccessToken = async (prompt = false): Promise<string> => {
 };
 
 export const backupToDrive = async (): Promise<void> => {
+    await import('dexie-export-import'); // Ensure dynamic import for NextJS SSR
     const token = await getAccessToken();
     const blob = await db.export();
 
@@ -81,6 +82,7 @@ export const listBackups = async (): Promise<any[]> => {
 };
 
 export const restoreFromDrive = async (fileId: string): Promise<void> => {
+    await import('dexie-export-import'); // Ensure dynamic import for NextJS SSR
     const token = await getAccessToken();
     const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
         headers: { Authorization: `Bearer ${token}` }
