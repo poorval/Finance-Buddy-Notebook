@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Chat } from "@/components/chat";
 import { DashboardView } from "@/components/DashboardView";
 import { Header } from "@/components/Header";
-import { WormholeAnimation } from "@/components/wormhole-animation";
 import { OnboardingDialog } from "@/components/onboarding-dialog";
 import { MobileNavBar, MobileTab } from "@/components/MobileNavBar";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -43,11 +42,11 @@ export default function Home() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowIntro(false);
-    }, 2500);
+    }, 1200);
 
     const storedMode = localStorage.getItem("storage_mode");
     if (!storedMode) {
-      setTimeout(() => setShowOnboarding(true), 1500);
+      setTimeout(() => setShowOnboarding(true), 2000);
     }
 
     return () => clearTimeout(timer);
@@ -92,12 +91,50 @@ export default function Home() {
       <AnimatePresence>
         {showIntro && (
           <motion.div
-            className="absolute inset-0 z-50 pointer-events-none"
+            className="absolute inset-0 z-50 bg-background flex flex-col items-center justify-center"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1, ease: "easeInOut" }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
           >
-            <WormholeAnimation />
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0, y: 30, rotate: -10 }}
+              animate={{ scale: 1, opacity: 1, y: 0, rotate: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: -20, rotate: 10 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25, mass: 0.5 }}
+              className="relative h-20 w-20 rounded-3xl bg-primary flex items-center justify-center shadow-2xl overflow-hidden"
+            >
+              {/* Inner glow swirl */}
+              <motion.div
+                initial={{ rotate: -180, scale: 0.5 }}
+                animate={{ rotate: 180, scale: 1.5 }}
+                transition={{ duration: 1.5, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
+                className="absolute inset-0 bg-primary-foreground/10 rounded-full blur-xl mix-blend-overlay"
+              />
+              <span className="text-primary-foreground font-bold text-3xl tracking-tighter flex overflow-hidden z-10">
+                <motion.span
+                  initial={{ y: 40, opacity: 0, rotate: -20 }}
+                  animate={{ y: 0, opacity: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 15, delay: 0.1 }}
+                >
+                  F
+                </motion.span>
+                <motion.span
+                  initial={{ y: 40, opacity: 0, rotate: 20 }}
+                  animate={{ y: 0, opacity: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 15, delay: 0.2 }}
+                >
+                  A
+                </motion.span>
+              </span>
+            </motion.div>
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.3 }}
+              className="mt-6 text-sm font-medium text-muted-foreground tracking-widest uppercase"
+            >
+              FrugalAgent
+            </motion.p>
           </motion.div>
         )}
       </AnimatePresence>

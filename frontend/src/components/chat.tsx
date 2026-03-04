@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { Send, Plus, Split, BarChart3, Bot, User, Sparkles } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Send, Plus, Split, BarChart3, Bot, User } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
@@ -11,8 +12,7 @@ import { getService } from '@/services/dataService';
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { motion, AnimatePresence } from "framer-motion"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 import { AddExpenseDialog } from "./AddExpenseDialog"
 import { ExpenseFormBubble } from "./ExpenseFormBubble"
@@ -42,16 +42,12 @@ export function Chat({ onTransactionComplete }: ChatProps) {
         if (scrollAreaRef.current) {
             const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
             if (scrollContainer) {
-                setTimeout(() => {
-                    scrollContainer.scrollTop = scrollContainer.scrollHeight;
-                }, 100);
+                setTimeout(() => { scrollContainer.scrollTop = scrollContainer.scrollHeight; }, 100);
             }
         }
     }
 
-    React.useEffect(() => {
-        scrollToBottom()
-    }, [messages])
+    React.useEffect(() => { scrollToBottom() }, [messages])
 
     const processMessage = async (text: string) => {
         const userMessage: Message = { role: "user", content: text }
@@ -83,10 +79,7 @@ export function Chat({ onTransactionComplete }: ChatProps) {
                     }
                 }
             }
-
-            if (onTransactionComplete) {
-                onTransactionComplete();
-            }
+            if (onTransactionComplete) onTransactionComplete();
         } catch (error) {
             console.error(error)
             setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I encountered an error. Please try again." }])
@@ -128,74 +121,48 @@ export function Chat({ onTransactionComplete }: ChatProps) {
             });
 
             setMessages(prev => prev.map((msg, i) => i === index ? { ...msg, isFormSubmitted: true } : msg));
-
-            setMessages(prev => [...prev, {
-                role: "assistant",
-                content: `Success! Added **$${amt}** for **${desc}** in **${cat}**.`
-            }]);
-
-            if (onTransactionComplete) {
-                onTransactionComplete();
-            }
+            setMessages(prev => [...prev, { role: "assistant", content: `Added **₹${amt}** for **${desc}** in **${cat}**.` }]);
+            if (onTransactionComplete) onTransactionComplete();
         } catch (error) {
             console.error("Failed to add transaction", error);
-            setMessages(prev => [...prev, {
-                role: "assistant",
-                content: "Error: Failed to add transaction. Please try again."
-            }]);
+            setMessages(prev => [...prev, { role: "assistant", content: "Error: Failed to add transaction. Please try again." }]);
         }
     }
 
-    // Message entry animation
-    const messageVariants = {
-        hidden: { opacity: 0, y: 10, scale: 0.97 },
-        visible: {
-            opacity: 1, y: 0, scale: 1,
-            transition: { type: "spring" as const, stiffness: 400, damping: 25 }
-        },
-    };
-
     return (
-        <div className="flex flex-col h-full max-h-full bg-background/50 backdrop-blur-sm md:border md:rounded-xl md:shadow-sm overflow-hidden">
-            {/* Chat header */}
-            <div className="p-3 md:p-4 border-b border-border/40 bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-primary" />
-                </div>
+        <div className="flex flex-col h-full max-h-full bg-background md:border md:rounded-lg overflow-hidden">
+            {/* Header */}
+            <div className="p-3 md:p-4 border-b flex items-center gap-2.5">
+                <Avatar className="h-8 w-8">
+                    <AvatarFallback className="text-xs bg-primary text-primary-foreground"><Bot className="h-4 w-4" /></AvatarFallback>
+                </Avatar>
                 <div>
-                    <h3 className="font-semibold text-sm tracking-tight">AI Assistant</h3>
-                    <p className="text-[10px] text-muted-foreground">Always here to help</p>
+                    <h3 className="font-semibold text-sm">AI Assistant</h3>
+                    <p className="text-xs text-muted-foreground">Always here to help</p>
                 </div>
             </div>
 
-            {/* Messages area */}
+            {/* Messages */}
             <div className="flex-1 relative min-h-0">
                 <ScrollArea className="h-full absolute inset-0 p-3 md:p-4" ref={scrollAreaRef}>
-                    <div className="flex flex-col gap-3 md:gap-5 pb-4">
+                    <div className="flex flex-col gap-3 pb-4">
                         <AnimatePresence initial={false}>
                             {messages.map((msg, index) => (
                                 <motion.div
                                     key={index}
-                                    variants={messageVariants}
-                                    initial="hidden"
-                                    animate="visible"
-                                    layout
+                                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
                                     className={cn(
-                                        "flex gap-2 md:gap-3 max-w-[88%] md:max-w-[85%]",
+                                        "flex gap-2.5 max-w-[85%] md:max-w-[80%]",
                                         msg.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
                                     )}
                                 >
-                                    <Avatar className="w-7 h-7 md:w-8 md:h-8 border shadow-sm mt-1 flex-shrink-0">
+                                    <Avatar className="h-7 w-7 shrink-0 mt-0.5">
                                         {msg.role === "user" ? (
-                                            <>
-                                                <AvatarImage src="/user-avatar.png" />
-                                                <AvatarFallback className="bg-primary text-primary-foreground"><User className="w-3.5 h-3.5 md:w-4 md:h-4" /></AvatarFallback>
-                                            </>
+                                            <AvatarFallback className="text-xs bg-primary text-primary-foreground"><User className="h-3.5 w-3.5" /></AvatarFallback>
                                         ) : (
-                                            <>
-                                                <AvatarImage src="/bot-avatar.png" />
-                                                <AvatarFallback className="bg-primary/10 text-primary"><Bot className="w-3.5 h-3.5 md:w-4 md:h-4" /></AvatarFallback>
-                                            </>
+                                            <AvatarFallback className="text-xs"><Bot className="h-3.5 w-3.5" /></AvatarFallback>
                                         )}
                                     </Avatar>
 
@@ -203,9 +170,7 @@ export function Chat({ onTransactionComplete }: ChatProps) {
                                         <div className="mt-1 w-full">
                                             <ExpenseFormBubble
                                                 onSubmit={(d, a, c, t) => handleExpenseBubbleSubmit(d, a, c, t, index)}
-                                                onCancel={() => {
-                                                    setMessages(prev => prev.filter((_, i) => i !== index));
-                                                }}
+                                                onCancel={() => setMessages(prev => prev.filter((_, i) => i !== index))}
                                             />
                                         </div>
                                     ) : msg.type === "insights" ? (
@@ -213,15 +178,13 @@ export function Chat({ onTransactionComplete }: ChatProps) {
                                             <InsightsBubble />
                                         </div>
                                     ) : (
-                                        <div
-                                            className={cn(
-                                                "rounded-2xl px-3.5 py-2.5 md:px-4 md:py-3 text-sm",
-                                                msg.role === "user"
-                                                    ? "bg-primary text-primary-foreground rounded-tr-md shadow-sm"
-                                                    : "bg-muted/40 border border-border/50 rounded-tl-md"
-                                            )}
-                                        >
-                                            <div className="prose dark:prose-invert max-w-none text-sm break-words leading-relaxed">
+                                        <div className={cn(
+                                            "rounded-lg px-3 py-2 text-sm min-w-0",
+                                            msg.role === "user"
+                                                ? "bg-primary text-primary-foreground"
+                                                : "bg-muted"
+                                        )}>
+                                            <div className="prose dark:prose-invert max-w-none text-sm break-words overflow-hidden leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                                                 <ReactMarkdown
                                                     remarkPlugins={[remarkGfm]}
                                                     components={{
@@ -241,18 +204,19 @@ export function Chat({ onTransactionComplete }: ChatProps) {
                         <AnimatePresence>
                             {isLoading && (
                                 <motion.div
-                                    initial={{ opacity: 0, y: 8 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -4 }}
-                                    className="flex gap-2 md:gap-3 mr-auto max-w-[80%]"
+                                    initial={{ opacity: 0, scale: 0.9, y: 15 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                                    className="flex gap-2.5 mr-auto max-w-[80%]"
                                 >
-                                    <Avatar className="w-7 h-7 md:w-8 md:h-8 border shadow-sm mt-1">
-                                        <AvatarFallback className="bg-primary/10 text-primary"><Bot className="w-3.5 h-3.5 md:w-4 md:h-4" /></AvatarFallback>
+                                    <Avatar className="h-7 w-7 shrink-0 mt-0.5">
+                                        <AvatarFallback className="text-xs"><Bot className="h-3.5 w-3.5" /></AvatarFallback>
                                     </Avatar>
-                                    <div className="bg-muted/40 border border-border/50 rounded-2xl rounded-tl-md px-4 py-3 text-sm flex items-center gap-1.5">
-                                        <span className="w-1.5 h-1.5 bg-foreground/40 rounded-full typing-dot" />
-                                        <span className="w-1.5 h-1.5 bg-foreground/40 rounded-full typing-dot" />
-                                        <span className="w-1.5 h-1.5 bg-foreground/40 rounded-full typing-dot" />
+                                    <div className="bg-muted rounded-lg px-4 py-3 flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full typing-dot" />
+                                        <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full typing-dot" />
+                                        <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full typing-dot" />
                                     </div>
                                 </motion.div>
                             )}
@@ -261,72 +225,39 @@ export function Chat({ onTransactionComplete }: ChatProps) {
                 </ScrollArea>
             </div>
 
-            {/* Bottom input area */}
-            <div className="p-3 md:p-4 border-t border-border/40 bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 space-y-2.5 md:space-y-3 pb-safe">
-                {/* Quick Actions */}
-                <div className="flex gap-2 w-full overflow-x-auto no-scrollbar">
+            {/* Bottom */}
+            <div className="p-3 md:p-4 border-t space-y-2 pb-safe">
+                <div className="flex gap-2 overflow-x-auto no-scrollbar">
                     <motion.div whileTap={{ scale: 0.95 }}>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleQuickAction("add")}
-                            className="gap-1.5 h-8 text-[11px] font-medium rounded-full bg-primary/5 border-primary/20 hover:bg-primary/10 hover:border-primary/30 text-primary transition-all flex-shrink-0"
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleQuickAction("add")} className="gap-1.5 h-8 text-xs shrink-0">
                             <Plus className="w-3 h-3" /> Add Expense
                         </Button>
                     </motion.div>
                     <motion.div whileTap={{ scale: 0.95 }}>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleQuickAction("split")}
-                            className="gap-1.5 h-8 text-[11px] font-medium rounded-full border-border/50 hover:bg-muted/50 transition-all opacity-40 cursor-not-allowed flex-shrink-0"
-                            title="Coming Soon"
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleQuickAction("split")} className="gap-1.5 h-8 text-xs opacity-40 cursor-not-allowed shrink-0" title="Coming Soon">
                             <Split className="w-3 h-3" /> Split Bill
                         </Button>
                     </motion.div>
                     <motion.div whileTap={{ scale: 0.95 }}>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleQuickAction("insights")}
-                            className="gap-1.5 h-8 text-[11px] font-medium rounded-full border-border/50 hover:bg-muted/50 transition-all flex-shrink-0"
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleQuickAction("insights")} className="gap-1.5 h-8 text-xs shrink-0">
                             <BarChart3 className="w-3 h-3" /> Insights
                         </Button>
                     </motion.div>
                 </div>
 
-                {/* Input Area */}
-                <form
-                    onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-                    className="flex w-full gap-2 relative"
-                >
+                <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2">
                     <Input
                         placeholder="Type a message..."
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         disabled={isLoading}
-                        className="flex-1 pr-12 h-11 rounded-full bg-muted/30 border-border/50 focus:border-primary/40 focus:bg-background/80 transition-all shadow-sm text-base md:text-sm"
+                        className="flex-1 h-10 text-sm"
                         style={{ fontSize: '16px' }}
                     />
-                    <motion.div
-                        className="absolute right-1.5 top-1.5"
-                        whileTap={{ scale: 0.88 }}
-                        animate={input.trim() ? { scale: [1, 1.05, 1] } : {}}
-                        transition={input.trim() ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : {}}
-                    >
-                        <Button
-                            type="submit"
-                            disabled={isLoading || !input.trim()}
-                            size="icon"
-                            className="h-8 w-8 rounded-full shadow-sm"
-                        >
-                            <Send className="w-3.5 h-3.5" />
-                            <span className="sr-only">Send</span>
-                        </Button>
-                    </motion.div>
+                    <Button type="submit" disabled={isLoading || !input.trim()} size="icon" className="h-10 w-10 shrink-0">
+                        <Send className="w-4 h-4" />
+                        <span className="sr-only">Send</span>
+                    </Button>
                 </form>
             </div>
         </div>
