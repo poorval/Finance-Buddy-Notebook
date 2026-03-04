@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, Edit2, Check, X } from 'lucide-react';
+import { Wallet, Pencil, Check, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { motion } from "framer-motion";
 import { getService } from '@/services/dataService';
 
 interface BudgetFlipCardProps {
@@ -13,20 +13,16 @@ interface BudgetFlipCardProps {
 }
 
 export function BudgetFlipCard({ currentBudget, onBudgetUpdate, onSuccess }: BudgetFlipCardProps) {
-    const [isFlipped, setIsFlipped] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
     const [newBudget, setNewBudget] = useState(currentBudget.toString());
     const [loading, setLoading] = useState(false);
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-        }).format(amount);
-    };
+    const formatCurrency = (amount: number) =>
+        new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
 
-    const handleFlip = () => {
+    const handleEdit = () => {
         setNewBudget(currentBudget.toString());
-        setIsFlipped(!isFlipped);
+        setIsEditing(true);
     };
 
     const handleSave = async () => {
@@ -34,12 +30,10 @@ export function BudgetFlipCard({ currentBudget, onBudgetUpdate, onSuccess }: Bud
         try {
             const val = parseFloat(newBudget);
             if (isNaN(val) || val < 0) return;
-
             const service = getService();
             await service.updateBudget(val);
-
             onSuccess(val);
-            setIsFlipped(false);
+            setIsEditing(false);
             if (onBudgetUpdate) onBudgetUpdate();
         } catch (error) {
             console.error("Failed to update budget", error);
@@ -49,74 +43,72 @@ export function BudgetFlipCard({ currentBudget, onBudgetUpdate, onSuccess }: Bud
     };
 
     return (
-        <div className="relative w-full h-full" style={{ perspective: "1000px" }}>
-            <motion.div
-                className="w-full h-full relative"
-                initial={false}
-                animate={{ rotateY: isFlipped ? 180 : 0 }}
-                transition={{ duration: 0.6, type: "spring", stiffness: 260, damping: 20 }}
-                style={{ transformStyle: "preserve-3d" }}
-            >
-                {/* Front Side */}
-                <Card
-                    className="absolute inset-0 w-full h-full flex flex-col card-glow border-border/60"
-                    style={{
-                        backfaceVisibility: "hidden",
-                        WebkitBackfaceVisibility: "hidden"
-                    }}
-                >
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-6 md:pb-2">
-                        <CardTitle className="text-[11px] md:text-sm font-semibold text-muted-foreground uppercase tracking-wide">Budget</CardTitle>
-                        <div className="h-6 w-6 md:h-auto md:w-auto rounded-full bg-emerald-500/10 flex items-center justify-center md:bg-transparent">
-                            <Wallet className="h-3 w-3 md:h-4 md:w-4 text-emerald-500 md:text-muted-foreground" />
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
-                        <div className="flex items-center gap-1.5 md:gap-2">
-                            <div className="text-lg md:text-2xl font-bold tracking-tight">{formatCurrency(currentBudget)}</div>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 md:h-6 md:w-6 text-muted-foreground hover:text-primary z-10"
-                                onClick={(e) => { e.stopPropagation(); handleFlip(); }}
-                            >
-                                <Edit2 className="h-3 w-3" />
-                            </Button>
-                        </div>
-                        <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Monthly limit</p>
-                    </CardContent>
-                </Card>
-
-                {/* Back Side */}
-                <Card
-                    className="absolute inset-0 w-full h-full flex flex-col justify-center card-glow border-border/60"
-                    style={{
-                        transform: "rotateY(180deg)",
-                        backfaceVisibility: "hidden",
-                        WebkitBackfaceVisibility: "hidden"
-                    }}
-                >
-                    <CardContent className="p-3 md:p-4 flex flex-col gap-2">
-                        <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Set Budget</label>
-                        <div className="flex gap-1.5 md:gap-2">
-                            <Input
-                                type="number"
-                                value={newBudget}
-                                onChange={(e) => setNewBudget(e.target.value)}
-                                className="h-8 text-sm rounded-lg border-border/50"
-                                placeholder="0.00"
-                                style={{ fontSize: '16px' }}
-                            />
-                            <Button size="icon" className="h-8 w-8 shrink-0 rounded-lg bg-emerald-500 hover:bg-emerald-600" onClick={handleSave} disabled={loading}>
-                                <Check className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 rounded-lg" onClick={handleFlip}>
-                                <X className="h-3.5 w-3.5" />
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </motion.div>
-        </div>
+        <Card className="h-full relative overflow-hidden">
+            <AnimatePresence mode="popLayout" initial={false}>
+                {isEditing ? (
+                    <motion.div
+                        key="edit"
+                        layout
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        className="h-full"
+                    >
+                        <CardContent className="p-3 md:p-6 h-full flex flex-col justify-center gap-2">
+                            <p className="text-[11px] md:text-xs font-medium text-muted-foreground">Set Budget</p>
+                            <div className="flex gap-1.5">
+                                <Input
+                                    type="number"
+                                    value={newBudget}
+                                    onChange={(e) => setNewBudget(e.target.value)}
+                                    className="h-9 text-sm"
+                                    placeholder="0.00"
+                                    autoFocus
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                                    style={{ fontSize: '16px' }}
+                                />
+                                <motion.div whileTap={{ scale: 0.9 }}>
+                                    <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSave} disabled={loading}>
+                                        <Check className="h-4 w-4" />
+                                    </Button>
+                                </motion.div>
+                                <motion.div whileTap={{ scale: 0.9 }}>
+                                    <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => setIsEditing(false)}>
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </motion.div>
+                            </div>
+                        </CardContent>
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        key="view"
+                        layout
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        className="h-full"
+                    >
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-6 md:pb-2">
+                            <CardTitle className="text-[11px] md:text-sm font-medium text-muted-foreground">Budget</CardTitle>
+                            <Wallet className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+                            <div className="flex items-center gap-1.5">
+                                <div className="text-lg md:text-2xl font-bold">{formatCurrency(currentBudget)}</div>
+                                <motion.div whileTap={{ scale: 0.9 }}>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={handleEdit}>
+                                        <Pencil className="h-3 w-3" />
+                                    </Button>
+                                </motion.div>
+                            </div>
+                            <p className="text-[10px] md:text-xs text-muted-foreground">Monthly limit</p>
+                        </CardContent>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </Card>
     );
 }

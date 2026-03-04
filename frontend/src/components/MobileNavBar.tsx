@@ -20,69 +20,41 @@ const tabs = [
 
 export function MobileNavBar({ activeTab, onTabChange }: MobileNavBarProps) {
     return (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
-            {/* Top glow line */}
-            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-
-            {/* Glassmorphism background */}
-            <div className="bg-background/70 backdrop-blur-2xl pb-safe">
-                <div className="flex items-center justify-around h-16 px-6">
-                    {tabs.map((tab) => {
-                        const isActive = activeTab === tab.id;
-                        const Icon = tab.icon;
-                        return (
-                            <motion.button
-                                key={tab.id}
-                                onClick={() => onTabChange(tab.id)}
-                                whileTap={{ scale: 0.85 }}
-                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                className={cn(
-                                    "relative flex flex-col items-center justify-center gap-1 w-16 h-full",
-                                    "transition-colors duration-200 outline-none",
-                                    isActive ? "text-primary" : "text-muted-foreground"
-                                )}
+        <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pb-safe">
+            <div className="flex items-center justify-around h-14">
+                {tabs.map((tab) => {
+                    const isActive = activeTab === tab.id;
+                    const Icon = tab.icon;
+                    return (
+                        <motion.button
+                            key={tab.id}
+                            whileTap={{ scale: 0.85 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                            onClick={() => onTabChange(tab.id)}
+                            className={cn(
+                                "flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors touch-target",
+                                isActive ? "text-foreground" : "text-muted-foreground"
+                            )}
+                        >
+                            <motion.div
+                                animate={isActive ? { y: -2 } : { y: 0 }}
+                                transition={{ type: "spring", stiffness: 300, damping: 20 }}
                             >
-                                {/* Active pill indicator with gradient */}
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="activeTabPill"
-                                        className="absolute top-1 w-12 h-8 rounded-full"
-                                        style={{
-                                            background: 'linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--primary) / 0.06))',
-                                        }}
-                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                                    />
-                                )}
-
-                                {/* Icon with weight shift */}
+                                <Icon className="h-5 w-5" strokeWidth={isActive ? 2 : 1.5} />
+                            </motion.div>
+                            <span className={cn("text-[10px]", isActive ? "font-semibold" : "font-medium")}>
+                                {tab.label}
+                            </span>
+                            {isActive && (
                                 <motion.div
-                                    animate={{
-                                        scale: isActive ? 1.05 : 1,
-                                    }}
-                                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                    className="z-10"
-                                >
-                                    <Icon
-                                        className="w-5 h-5"
-                                        strokeWidth={isActive ? 2.5 : 1.8}
-                                    />
-                                </motion.div>
-
-                                {/* Label with slide animation */}
-                                <motion.span
-                                    animate={{
-                                        opacity: isActive ? 1 : 0.5,
-                                        y: isActive ? 0 : 1,
-                                    }}
-                                    transition={{ duration: 0.2 }}
-                                    className="text-[10px] font-semibold z-10 tracking-wide"
-                                >
-                                    {tab.label}
-                                </motion.span>
-                            </motion.button>
-                        );
-                    })}
-                </div>
+                                    layoutId="mobile-nav-indicator"
+                                    className="absolute top-0 w-8 h-1 rounded-b-full bg-foreground"
+                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                />
+                            )}
+                        </motion.button>
+                    );
+                })}
             </div>
         </nav>
     );

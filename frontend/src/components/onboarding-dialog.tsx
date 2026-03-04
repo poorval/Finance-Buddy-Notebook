@@ -11,7 +11,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-import { Card } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 
 interface OnboardingDialogProps {
     open: boolean
@@ -22,85 +22,63 @@ interface OnboardingDialogProps {
 export function OnboardingDialog({ open, onOpenChange, onComplete }: OnboardingDialogProps) {
     const [selectedMode, setSelectedMode] = React.useState<string | null>(null)
 
-    const handleConfirm = () => {
-        if (selectedMode) {
-            onComplete(selectedMode)
-        }
-    }
-
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] [&>button]:hidden">
+            <DialogContent className="sm:max-w-[480px] [&>button]:hidden">
                 <DialogHeader>
-                    <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                        Welcome to FrugalAgent
-                    </DialogTitle>
-                    <DialogDescription className="text-base">
-                        To get started, please choose how you would like to save your data.
+                    <DialogTitle className="text-xl">Welcome to FrugalAgent</DialogTitle>
+                    <DialogDescription>
+                        Choose how you'd like to store your data.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-4 py-4">
-                    {/* Local Option */}
-                    <Card
-                        className={`relative p-4 cursor-pointer border-2 transition-all hover:bg-accent/50 ${selectedMode === 'local' ? 'border-primary bg-primary/5' : 'border-muted'}`}
+                <div className="grid gap-3 py-4">
+                    <button
+                        className={cn(
+                            "relative flex items-start gap-3 rounded-lg border-2 p-4 text-left transition-colors",
+                            selectedMode === 'local' ? "border-primary bg-muted/50" : "border-border hover:bg-muted/50"
+                        )}
                         onClick={() => setSelectedMode('local')}
                     >
-                        <div className="flex items-start gap-4">
-                            <div className={`mt-1 p-2 rounded-lg ${selectedMode === 'local' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                                <HardDrive className="h-6 w-6" />
-                            </div>
-                            <div className="space-y-1">
-                                <h3 className="font-semibold">Local Storage</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Data is stored securely in your browser. Fast and private, but specific to this device.
-                                </p>
-                                {selectedMode === 'local' && (
-                                    <div className="flex items-start gap-2 pt-2 text-xs text-amber-600 dark:text-amber-500 font-medium">
-                                        <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                                        <span>Warning: Clearing browser data will delete your expenses.</span>
-                                    </div>
-                                )}
-                            </div>
+                        <HardDrive className={cn("h-5 w-5 mt-0.5 shrink-0", selectedMode === 'local' ? "text-foreground" : "text-muted-foreground")} />
+                        <div className="space-y-1 flex-1">
+                            <p className="text-sm font-semibold leading-none">Local Storage</p>
+                            <p className="text-sm text-muted-foreground">Stored in your browser. Fast and private, but device-specific.</p>
                             {selectedMode === 'local' && (
-                                <div className="absolute top-4 right-4 text-primary">
-                                    <Check className="h-5 w-5" />
-                                </div>
+                                <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 pt-1">
+                                    <AlertTriangle className="h-3 w-3" /> Clearing browser data will delete your expenses.
+                                </p>
                             )}
                         </div>
-                    </Card>
+                        {selectedMode === 'local' && (
+                            <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center shrink-0">
+                                <Check className="h-3 w-3 text-primary-foreground" />
+                            </div>
+                        )}
+                    </button>
 
-                    {/* Cloud Option */}
-                    <Card
-                        className={`relative p-4 cursor-pointer border-2 transition-all hover:bg-accent/50 ${selectedMode === 'cloud' ? 'border-primary bg-primary/5' : 'border-muted'}`}
+                    <button
+                        className={cn(
+                            "relative flex items-start gap-3 rounded-lg border-2 p-4 text-left transition-colors",
+                            selectedMode === 'cloud' ? "border-primary bg-muted/50" : "border-border hover:bg-muted/50"
+                        )}
                         onClick={() => setSelectedMode('cloud')}
                     >
-                        <div className="flex items-start gap-4">
-                            <div className={`mt-1 p-2 rounded-lg ${selectedMode === 'cloud' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                                <Cloud className="h-6 w-6" />
-                            </div>
-                            <div className="space-y-1">
-                                <h3 className="font-semibold">Cloud Sync</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Data is stored in the cloud (Supabase). Access your expenses from any device.
-                                </p>
-                            </div>
-                            {selectedMode === 'cloud' && (
-                                <div className="absolute top-4 right-4 text-primary">
-                                    <Check className="h-5 w-5" />
-                                </div>
-                            )}
+                        <Cloud className={cn("h-5 w-5 mt-0.5 shrink-0", selectedMode === 'cloud' ? "text-foreground" : "text-muted-foreground")} />
+                        <div className="space-y-1 flex-1">
+                            <p className="text-sm font-semibold leading-none">Cloud Sync</p>
+                            <p className="text-sm text-muted-foreground">Stored in the cloud. Access from any device.</p>
                         </div>
-                    </Card>
+                        {selectedMode === 'cloud' && (
+                            <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center shrink-0">
+                                <Check className="h-3 w-3 text-primary-foreground" />
+                            </div>
+                        )}
+                    </button>
                 </div>
 
                 <DialogFooter>
-                    <Button
-                        onClick={handleConfirm}
-                        disabled={!selectedMode}
-                        size="lg"
-                        className="w-full sm:w-auto"
-                    >
+                    <Button onClick={() => selectedMode && onComplete(selectedMode)} disabled={!selectedMode} className="w-full sm:w-auto">
                         Continue <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                 </DialogFooter>

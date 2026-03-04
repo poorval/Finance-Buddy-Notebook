@@ -12,6 +12,7 @@ import {
     ChartLegendContent,
     type ChartConfig,
 } from "@/components/ui/chart"
+import { PieChartIcon } from 'lucide-react';
 
 interface CategoryTotal {
     category: string;
@@ -25,7 +26,9 @@ const CHART_COLORS = [
     "hsl(var(--chart-3))",
     "hsl(var(--chart-4))",
     "hsl(var(--chart-5))",
-    "hsl(var(--chart-1))",
+    "hsl(var(--chart-6))",
+    "hsl(var(--chart-7))",
+    "hsl(var(--chart-8))",
 ];
 
 export function Dashboard({ refreshTrigger }: { refreshTrigger: number }) {
@@ -68,15 +71,18 @@ export function Dashboard({ refreshTrigger }: { refreshTrigger: number }) {
     }, [data]);
 
     return (
-        <Card className="flex flex-col h-full shadow-md border-0 bg-card/50">
+        <Card className="flex flex-col h-full">
             <CardHeader className="items-center pb-0 px-3 md:px-6">
                 <CardTitle className="text-base md:text-lg">Spending by Category</CardTitle>
                 <CardDescription>Current Month</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 pb-0 px-2 md:px-6">
                 {data.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-muted-foreground min-h-[200px]">
-                        No data available
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground min-h-[200px] space-y-3">
+                        <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+                            <PieChartIcon className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <p className="text-sm">No data available</p>
                     </div>
                 ) : (
                     <ChartContainer
